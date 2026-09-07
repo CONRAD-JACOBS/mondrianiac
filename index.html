@@ -263,6 +263,10 @@ function draw() { ctx.clearRect(0,0,W,H); ctx.drawImage(paint,0,0); drawBars(ctx
 // Flood the wall mask, never the paint colors. Four-neighbor traversal prevents
 // leakage through corners and deliberately crosses boundaries of old paint.
 function fillAt(x,y) {
+  // The workspace is a neutral surround, not part of the painting.
+  if (x <= frame.left || x >= frame.right || y <= frame.top || y >= frame.bottom) {
+    status('Choose an area inside the picture frame to paint.'); return;
+  }
   if (!color) { status('Choose a color from the palette first.'); return; }
   x = clamp(Math.floor(x),0,W-1); y = clamp(Math.floor(y),0,H-1);
   wallContext.clearRect(0,0,W,H); drawBars(wallContext);
