@@ -8,7 +8,7 @@
 <title>Mondrianiac — A playground for line & color</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <style>
-:root { color-scheme: light; --paper:#f5f3ed; --ink:#191919; --muted:#E5E4E2; --rule:#d4d1c9; --blue:#1838ab; --yellow:#f3d535; --red:#d53626; }
+:root { color-scheme: light; --paper:#f5f3ed; --ink:#191919; --muted:#66645f; --rule:#d4d1c9; --blue:#1838ab; --yellow:#f3d535; --red:#d53626; }
 * { box-sizing:border-box; }
 html { scroll-behavior:smooth; }
 body { margin:0; background:var(--paper); color:var(--ink); font-family:Arial,Helvetica,sans-serif; -webkit-font-smoothing:antialiased; }
@@ -183,6 +183,8 @@ blockquote footer { font-size:12px; }
 'use strict';
 const board = document.getElementById('board'), ctx = board.getContext('2d');
 const W = board.width, H = board.height, thickness = 8, snapDistance = 10;
+// Paint colors are independent of the page typography.
+const paintColor = name => name === 'gray' ? '#D3D3D3' : name;
 const paint = document.createElement('canvas'); paint.width = W; paint.height = H;
 const ink = paint.getContext('2d', { willReadFrequently: true });
 const wallCanvas = document.createElement('canvas'); wallCanvas.width = W; wallCanvas.height = H;
@@ -275,7 +277,7 @@ function fillAt(x,y) {
   if (walls[start*4+3]) return;
   checkpoint();
   const pixel = document.createElement('canvas').getContext('2d');
-  pixel.fillStyle = color; pixel.fillRect(0,0,1,1);
+  pixel.fillStyle = paintColor(color); pixel.fillRect(0,0,1,1);
   const rgba = pixel.getImageData(0,0,1,1).data;
   const image = ink.getImageData(0,0,W,H), data = image.data;
   const seen = new Uint8Array(W*H), queue = new Int32Array(W*H);
@@ -549,7 +551,7 @@ for(const [id,o] of [['horizontal','h'],['vertical','v']]) document.getElementBy
 };
 for(const c of ['red','yellow','blue','white','gray','black']) {
   const b=document.createElement('button'); b.className='swatch'; b.dataset.color=c;
-  b.style.background=c; b.title=c; b.setAttribute('aria-label','Paint '+c); b.setAttribute('aria-pressed','false');
+  b.style.background=paintColor(c); b.title=c; b.setAttribute('aria-label','Paint '+c); b.setAttribute('aria-pressed','false');
   b.onclick=()=>{color=c;mode=null;updateTools();status('Click an open area to paint it '+c+'.');};
   document.getElementById('palette').appendChild(b);
 }
@@ -593,7 +595,7 @@ function initialize() {
     const xs=positions(24,W-24);
     for(const p of xs) bars.push({o:'v',p,a:ys[row],b:ys[row+1], ...(p===24?{edge:'left'}:p===W-24?{edge:'right'}:{})});
     for(let col=0;col<xs.length-1;col++) {
-      ink.fillStyle=choices[Math.floor(Math.random()*choices.length)];
+      ink.fillStyle=paintColor(choices[Math.floor(Math.random()*choices.length)]);
       ink.fillRect(xs[col],ys[row],xs[col+1]-xs[col],ys[row+1]-ys[row]);
     }
   }
