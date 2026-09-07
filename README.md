@@ -1,0 +1,40 @@
+# Mondrianiac
+
+A small, free playground for line, color, proportion, and balance, inspired by Piet Mondrian.
+
+**Website:** https://conrad-jacobs.github.io/mondrianiac/
+
+## Use the studio
+
+- Select a color, then click an area. Paint fills every connected open space.
+- Drag interior bars to reshape cells. Overlapping bars merge, including into the protected outer frame.
+- Drag the frame inward to compress neighboring cells while keeping minimum spacing.
+- Choose a horizontal or vertical line tool, then click open space to add a bar.
+- Right-click an interior bar to remove the segment between adjacent perpendicular intersections.
+- Undo with the button or Command/Ctrl+Z. Escape leaves line mode.
+- Save image downloads a PNG cropped to the full outer frame.
+
+The thin boundary around the workspace marks its maximum extent. The bold black frame inside it belongs to the picture.
+
+## Files and local preview
+
+Open `index.html` in a browser. There are no installation or build steps. CSS and JavaScript are contained in that file; the portrait and favicon are in `assets/`.
+
+The app runs entirely in the browser, with no backend, account requirement, external fonts, analytics, or runtime dependencies. Paintings are kept in memory until downloaded; refreshing starts a new composition.
+
+## Hosting
+
+This is a static GitHub Pages site, published from the root of the `main` branch. To enable publishing manually, choose **Settings → Pages → Deploy from a branch → main → /(root)**.
+
+All asset paths are relative, so the same files work at a GitHub Pages project URL or on a custom domain. A domain can be configured later through the repository's Pages settings; no app rewrite is needed.
+
+- [GitHub Pages publishing documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+- [Custom domain documentation](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages)
+
+## Credits
+
+> “It is so hard, the work.”
+
+Piet Mondrian, as recalled by Charmion von Wiegand, quoted in Nicholas Fox Weber, *Mondrian: His Life, His Art, His Quest for the Absolute* (2024), Knopf Doubleday. Quotation and bibliographic attribution supplied by the project creator.
+
+Portrait: Piet Mondrian in his New York studio, 1942. Photograph by Arnold Newman; collection RKD, The Hague. Source: [Villa Mondriaan timeline](https://villamondriaan.nl/en/timeline/). The source image is stored locally in `assets/mondrian-in-his-studio.jpg`.

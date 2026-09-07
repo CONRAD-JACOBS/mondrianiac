@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f3ed">
+<meta name="description" content="Make your own Mondrian-inspired composition. Move lines, explore color and balance, and save your picture. A free, playful painting studio in your browser.">
+<title>Mondrianiac — A playground for line & color</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+:root { color-scheme: light; --paper:#f5f3ed; --ink:#191919; --muted:#66645f; --rule:#d4d1c9; --blue:#1838ab; --yellow:#f3d535; --red:#d53626; }
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; background:var(--paper); color:var(--ink); font-family:Arial,Helvetica,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:inherit; text-underline-offset:4px; }
+a:hover { color:var(--blue); }
+button { font:inherit; cursor:pointer; }
+button:disabled { cursor:default; opacity:.35; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline:3px solid var(--blue); outline-offset:5px; }
+button, a { -webkit-tap-highlight-color:transparent; }
+svg { display:block; }
+.wrap { width:min(1120px,calc(100% - 64px)); margin-inline:auto; }
+.mono { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+.skip { position:absolute; top:-100px; left:20px; padding:12px; background:white; z-index:10; }
+.skip:focus { top:12px; }
+.site-header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:27px 0 23px; border-bottom:2px solid var(--ink); }
+.brand { display:flex; align-items:center; gap:12px; text-decoration:none; font-size:25px; font-weight:800; letter-spacing:-1.2px; }
+.brand svg { width:34px; height:34px; }
+.header-right { display:flex; align-items:center; gap:38px; }
+.tagline { color:var(--muted); }
+nav { display:flex; gap:24px; font-size:13px; }
+nav a { text-decoration:none; }
+.hero { display:flex; align-items:flex-end; justify-content:space-between; gap:36px; padding:37px 0 30px; }
+.eyebrow { display:flex; align-items:center; gap:9px; margin:0 0 13px; color:var(--muted); }
+.eyebrow::before { content:''; width:7px; height:7px; background:var(--red); }
+h1 { font-size:clamp(36px,4.5vw,60px); line-height:1.04; letter-spacing:-2.8px; margin:0; font-weight:800; }
+.intro { max-width:310px; font-size:14px; line-height:1.65; color:var(--muted); margin:0 0 3px; }
+.studio { border:1px solid var(--ink); background:#fdfcf9; scroll-margin-top:16px; }
+.studio-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:15px 22px; border-bottom:1px solid var(--rule); }
+.studio-title { display:flex; align-items:center; gap:14px; }
+.studio-title h2 { font-size:12px; font-weight:500; margin:0; }
+.color-mark { display:flex; gap:4px; }
+.color-mark span { width:8px; height:16px; background:var(--red); }
+.color-mark span:nth-child(2) { background:var(--blue); }
+.color-mark span:nth-child(3) { background:var(--yellow); }
+.actions { display:flex; align-items:center; gap:20px; }
+#undo { display:flex; align-items:center; gap:7px; border:0; background:none; padding:8px 0; font-size:12px; }
+#save-image { display:flex; align-items:center; gap:9px; padding:11px 15px; border:1px solid var(--ink); color:#fff; background:var(--ink); font-size:12px; font-weight:600; }
+#save-image:hover { background:var(--blue); border-color:var(--blue); }
+.toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:17px 22px 14px; }
+.palette-group { display:flex; align-items:center; gap:18px; }
+.tool-label { color:var(--muted); }
+#palette { display:flex; flex-wrap:wrap; gap:8px; }
+.swatch { width:29px; height:29px; border:1px solid #0003; padding:0; position:relative; }
+.swatch:hover { transform:translateY(-2px); }
+.swatch[aria-pressed="true"] { outline:2px solid var(--ink); outline-offset:3px; }
+.workspace-label { color:var(--muted); font-size:10px; }
+.workspace { display:grid; grid-template-columns:54px minmax(0,800px); justify-content:center; gap:18px; padding:6px 22px 20px; }
+#tools { display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:16px; }
+#tools .tool-label { font-size:9px; margin-bottom:2px; }
+.tool { width:44px; height:44px; background:#fff; border:1px solid #bcb9b1; position:relative; }
+.tool::after { content:''; position:absolute; background:var(--ink); }
+#horizontal::after { left:9px; right:9px; top:18px; height:6px; }
+#vertical::after { top:9px; bottom:9px; left:18px; width:6px; }
+.tool:hover { border-color:var(--ink); }
+.tool[aria-pressed="true"] { box-shadow:inset 0 0 0 2px var(--ink); background:var(--yellow); }
+.canvas-surround { position:relative; min-width:0; border:1px solid #bdbab2; padding:7px; background:#e9e7e1; }
+canvas { display:block; width:100%; height:auto; touch-action:none; user-select:none; }
+.studio-status { min-height:42px; border-top:1px solid var(--rule); display:flex; align-items:center; justify-content:space-between; gap:18px; padding:11px 22px; }
+#status { margin:0; font-size:12px; color:var(--muted); line-height:1.5; }
+.studio-note { flex-shrink:0; color:var(--muted); font-size:10px; }
+.guide { border-bottom:1px solid var(--rule); scroll-margin-top:20px; }
+.guide summary { cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; padding:21px 0; font-size:13px; }
+.guide summary::-webkit-details-marker { display:none; }
+.guide summary::after { content:'+'; font-size:22px; font-weight:400; }
+.guide[open] summary::after { content:'−'; }
+.guide-title { display:flex; gap:16px; align-items:center; }
+.guide-title .mono { color:var(--blue); }
+.guide-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:28px; padding:0 0 25px; }
+.guide-grid h3 { font-size:13px; margin:0 0 10px; }
+.guide-grid p { margin:0; color:var(--muted); font-size:13px; line-height:1.6; }
+.about { margin:62px 0 0; display:grid; grid-template-columns:330px minmax(0,1fr); border-top:3px solid var(--ink); border-bottom:1px solid var(--rule); scroll-margin-top:20px; }
+.portrait { margin:0; border-right:1px solid var(--rule); }
+.portrait img { display:block; width:100%; height:auto; aspect-ratio:750/954; object-fit:cover; }
+.portrait figcaption { padding:14px 17px 15px 0; color:var(--muted); font-size:10px; line-height:1.6; }
+.about-copy { padding:32px 0 28px 46px; display:flex; flex-direction:column; justify-content:space-between; }
+.about-kicker { display:flex; justify-content:space-between; align-items:center; gap:16px; color:var(--muted); }
+.about-kicker::after { content:''; width:36px; height:36px; background:var(--yellow); }
+blockquote { margin:22px 0 17px; }
+blockquote p { font-size:clamp(34px,4.6vw,57px); font-weight:700; line-height:1.1; letter-spacing:-2px; margin:0 0 17px; max-width:470px; }
+blockquote footer { font-size:12px; }
+.about-description { font-size:14px; line-height:1.7; max-width:510px; margin:20px 0; color:var(--muted); }
+.citation { font-size:11px; line-height:1.65; color:var(--muted); margin:0; max-width:500px; }
+.site-footer { display:flex; justify-content:space-between; gap:20px; padding:25px 0 32px; color:var(--muted); font-size:11px; }
+.site-footer strong { color:var(--ink); font-weight:600; }
+@media(min-width:1200px) { .workspace { grid-template-columns:54px minmax(0,880px); } }
+@media(max-width:760px) {
+ .wrap { width:calc(100% - 32px); } .site-header { padding:20px 0; } .brand { font-size:22px; } .tagline { display:none; }
+ nav { gap:16px; font-size:12px; } .hero { padding:28px 0 24px; display:block; } h1 { letter-spacing:-1.8px; }
+ .intro { max-width:440px; margin:15px 0 0; font-size:13px; } .studio-header,.toolbar { padding:12px; }
+ .actions { gap:12px; } .studio-title { gap:8px; } .studio-title h2 { font-size:10px; } #save-image { padding:10px; }
+ .toolbar { flex-wrap:wrap; } .palette-group { gap:12px; } .workspace-label { font-size:9px; }
+ .workspace { grid-template-columns:44px minmax(0,1fr); gap:10px; padding:2px 12px 14px; } .canvas-surround { padding:4px; }
+ #tools { padding-top:6px; } .studio-status { padding:10px 12px; } .studio-note { display:none; }
+ .guide-grid { grid-template-columns:repeat(2,1fr); gap:20px; } .about { grid-template-columns:38% minmax(0,1fr); margin-top:38px; }
+ .about-copy { padding:22px 0 24px 24px; } blockquote p { font-size:34px; letter-spacing:-1px; } .about-description { font-size:13px; }
+ .about-kicker::after { width:22px; height:22px; } .portrait figcaption { padding-right:12px; }
+}
+@media(max-width:480px) {
+ .brand svg { width:28px; height:28px; } .header-right nav a:first-child { display:none; }
+ .studio-title h2 { font-size:9px; letter-spacing:.04em; } .color-mark { gap:2px; } .color-mark span { width:5px; height:13px; }
+ .actions { gap:10px; } #undo { font-size:11px; } #save-image { font-size:11px; gap:6px; } #save-image svg { width:14px; }
+ .palette-group { width:100%; justify-content:space-between; } .palette-group .tool-label { font-size:9px; white-space:nowrap; } #palette { flex-wrap:nowrap; flex-shrink:0; gap:6px; } .swatch { width:27px; height:27px; } #save-image { white-space:nowrap; flex-shrink:0; } #save-image .mono { display:none; } .workspace-label { margin-left:auto; }
+ .workspace { grid-template-columns:36px minmax(0,1fr); gap:7px; padding-inline:8px; } .tool { width:34px; height:34px; }
+ #horizontal::after { left:6px; right:6px; top:13px; } #vertical::after { top:6px; bottom:6px; left:13px; }
+ #tools .tool-label { font-size:8px; } .about { grid-template-columns:1fr; } .portrait { border-right:0; display:grid; grid-template-columns:45% 1fr; gap:18px; align-items:end; }
+ .portrait figcaption { padding-bottom:0; } .about-copy { padding:26px 0; } .about-description { margin:10px 0 20px; }
+ .site-footer { flex-direction:column; gap:10px; } .guide-grid { gap:22px 18px; }
+}
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .swatch:hover { transform:none; } }
+@media print { body { background:white; } .site-header,.hero,.studio-header,.toolbar,#tools,.studio-status,.guide,.about,.site-footer { display:none; } .wrap { width:100%; } .studio { border:0; } .workspace { display:block; padding:0; } .canvas-surround { border:0; padding:0; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#studio">Skip to the studio</a>
+<header class="site-header wrap">
+  <a class="brand" href="./" aria-label="Mondrianiac home">
+    <svg viewBox="0 0 36 36" aria-hidden="true"><path fill="#191919" d="M0 0h36v36H0z"/><path fill="#f5f3ed" d="M3 3h17v17H3zM24 24h9v9h-9z"/><path fill="#d53626" d="M24 3h9v17h-9z"/><path fill="#1838ab" d="M3 24h7v9H3z"/><path fill="#f3d535" d="M14 24h6v9h-6z"/></svg>
+    <span>Mondrianiac<span aria-hidden="true">.</span></span>
+  </a>
+  <div class="header-right"><span class="mono tagline">A playground for line &amp; color</span><nav aria-label="Main"><a href="#how-to">How to play</a><a href="#about">The inspiration</a></nav></div>
+</header>
+<main class="wrap">
+  <section class="hero" aria-labelledby="page-title">
+    <div><p class="eyebrow mono">An exercise in seeing</p><h1 id="page-title">Find your balance.</h1></div>
+    <p class="intro">A line. A color. A different possibility.<br>Make a composition of your own, one small adjustment at a time.</p>
+  </section>
+  <section class="studio" id="studio" aria-labelledby="studio-title">
+    <div class="studio-header">
+      <div class="studio-title"><span class="color-mark" aria-hidden="true"><span></span><span></span><span></span></span><h2 class="mono" id="studio-title">Composition studio</h2></div>
+      <div class="actions">
+        <button id="undo" type="button" disabled title="Undo (⌘Z or Ctrl+Z)"><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h8a5 5 0 0 1 0 10"/></svg>Undo</button>
+        <button id="save-image" type="button"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10 2v11m-4-4 4 4 4-4M3 13v4h14v-4"/></svg>Save image <span class="mono" style="font-size:9px;opacity:.65">PNG</span></button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="palette-group"><span class="mono tool-label">Choose a color</span><div id="palette" role="group" aria-label="Paint colors"></div></div>
+      <span class="mono workspace-label">800 × 600 · workspace limit</span>
+    </div>
+    <div class="workspace">
+      <div id="tools" role="group" aria-label="Add bars"><span class="mono tool-label">Add line</span>
+        <button id="horizontal" class="tool" type="button" title="Add horizontal bars" aria-label="Add horizontal bars" aria-pressed="false"></button>
+        <button id="vertical" class="tool" type="button" title="Add vertical bars" aria-label="Add vertical bars" aria-pressed="false"></button>
+      </div>
+      <div class="canvas-surround"><canvas id="board" width="800" height="600" aria-label="Interactive Mondrian composition. Choose a color to paint; drag bars to reshape it." aria-describedby="how-to">Your browser needs canvas support to use the studio.</canvas></div>
+    </div>
+    <div class="studio-status"><p id="status" role="status" aria-live="polite">Choose a color, then click an area to make it yours.</p><span class="mono studio-note">Experiment. Adjust. Repeat.</span></div>
+  </section>
+  <details class="guide" id="how-to">
+    <summary><span class="guide-title"><span class="mono">A few simple moves</span>How to play</span></summary>
+    <div class="guide-grid">
+      <div><h3>01 &nbsp; Color</h3><p>Choose a swatch, then click an area. Color flows through gaps into every connected space.</p></div>
+      <div><h3>02 &nbsp; Compose</h3><p>Drag a bar to resize the shapes. Move the outer frame inward to gently push neighboring lines together.</p></div>
+      <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. Overlapping bars merge; the outer frame stays intact.</p></div>
+      <div><h3>04 &nbsp; Keep exploring</h3><p>Undo a move with the button or ⌘Z / Ctrl+Z. Escape leaves line mode. Save image downloads your picture, complete with its black frame.</p></div>
+    </div>
+  </details>
+  <section class="about" id="about" aria-labelledby="about-title">
+    <figure class="portrait">
+      <img src="assets/mondrian-in-his-studio.jpg" width="750" height="954" alt="Piet Mondrian seated in his studio, resting his chin on his hand as he looks toward a painting." loading="lazy">
+      <figcaption>Piet Mondrian in his New York studio, 1942.<br>Photograph: Arnold Newman. Collection: RKD, The Hague.<br>Image source: <a href="https://villamondriaan.nl/en/timeline/" target="_blank" rel="noopener noreferrer">Villa Mondriaan ↗</a></figcaption>
+    </figure>
+    <div class="about-copy">
+      <div class="about-kicker"><h2 class="mono" id="about-title" style="font-weight:400;margin:0">In the spirit of Mondrian</h2></div>
+      <blockquote><p>“It is so hard,<br>the work.”</p><footer>— Piet Mondrian</footer></blockquote>
+      <p class="about-description">A few colors. Straight lines. Endless decisions.<br>Mondrianiac is a place to develop your own intuitions about proportion, rhythm, and balance. There is no correct composition. Take your time finding one that feels right.</p>
+      <p class="citation">As recalled by Charmion von Wiegand, quoted in Nicholas Fox Weber, <cite>Mondrian: His Life, His Art, His Quest for the Absolute</cite> (2024), Knopf Doubleday.</p>
+    </div>
+  </section>
+</main>
+<footer class="site-footer wrap"><span><strong>Mondrianiac.</strong> &nbsp; A study in possibility.</span><span>Made in your browser. Saved to your device.</span></footer>
+<script>
+'use strict';
+const board = document.getElementById('board'), ctx = board.getContext('2d');
+const W = board.width, H = board.height, thickness = 8, snapDistance = 10;
+const paint = document.createElement('canvas'); paint.width = W; paint.height = H;
+const ink = paint.getContext('2d', { willReadFrequently: true });
+const wallCanvas = document.createElement('canvas'); wallCanvas.width = W; wallCanvas.height = H;
+const wallContext = wallCanvas.getContext('2d', { willReadFrequently: true });
+let bars = [], mode = null, color = null, drag = null;
+let frame = { left: 24, right: W - 24, top: 24, bottom: H - 24 };
+const history = [];
+const status = message => { document.getElementById('status').textContent = message; };
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const contains = (bar, t) => t >= bar.a && t <= bar.b;
+const opposite = o => o === 'h' ? 'v' : 'h';
+const copyBars = () => bars.map(b => ({...b}));
+function checkpoint() {
+  history.push({ bars: copyBars(), frame: {...frame}, paint: ink.getImageData(0, 0, W, H) });
+  if (history.length > 30) history.shift();
+  document.getElementById('undo').disabled = false;
+}
+function undo() {
+  if (drag || !history.length) return;
+  const state = history.pop(); bars = state.bars; frame = state.frame; ink.putImageData(state.paint, 0, 0);
+  document.getElementById('undo').disabled = !history.length;
+  draw(); status('Previous edit restored.');
+}
+
+// Store a union of collinear intervals. Intersections are computed dynamically,
+// so both T junctions and full crossings delimit independently removable pieces.
+function normalize() {
+  const sorted = bars.filter(b => b.b > b.a).sort((a,b) => a.o.localeCompare(b.o) || a.p-b.p || (a.edge || '').localeCompare(b.edge || '') || a.a-b.a);
+  const result = [];
+  for (const bar of sorted) {
+    const last = result[result.length-1];
+    if (last && last.o === bar.o && last.p === bar.p && last.edge === bar.edge && bar.a <= last.b) last.b = Math.max(last.b, bar.b);
+    else result.push({...bar});
+  }
+  // The frame wins any overlap: discard absorbed interior runs without
+  // replacing the frame bar or losing its protected edge identity.
+  bars = result.filter(b => b.edge || !result.some(edge => edge.edge &&
+    edge.o === b.o && edge.p === b.p && edge.a <= b.a && edge.b >= b.b));
+}
+function cuts(bar) {
+  return [...new Set([bar.a, bar.b, ...bars.filter(b => b.o !== bar.o && contains(b, bar.p) && contains(bar, b.p)).map(b => b.p)])].sort((a,b) => a-b);
+}
+function segmentAt(bar, t) {
+  const points = cuts(bar);
+  for (let i=0; i<points.length-1; i++) if (t >= points[i] && (t < points[i+1] || i === points.length-2)) return [points[i], points[i+1]];
+}
+function removeSegment(bar, t) {
+  if (bar.edge) { status('Outer frame bars are protected. Drag them to resize the picture.'); return; }
+  const interval = segmentAt(bar, t);
+  if (!interval) return;
+  checkpoint();
+  const [a,b] = interval;
+  bars = bars.filter(item => item !== bar);
+  if (bar.a < a) bars.push({...bar,b:a});
+  if (b < bar.b) bars.push({...bar,a:b});
+  normalize(); draw(); status('Bar segment removed. Existing paint is unchanged.');
+}
+function addBar(o, x, y) {
+  if (x <= frame.left || x >= frame.right || y <= frame.top || y >= frame.bottom) {
+    status('Add bars inside the frame.'); return;
+  }
+  const p = Math.round(o === 'h' ? y : x), t = o === 'h' ? x : y;
+  const stops = bars.filter(b => b.o !== o && contains(b,p)).map(b => b.p);
+  const lower = stops.filter(v => v < t), upper = stops.filter(v => v > t);
+  if (!lower.length || !upper.length) { status('A new bar needs a perpendicular bar on both sides.'); return; }
+  const a = Math.max(...lower), b = Math.min(...upper);
+  checkpoint(); bars.push({o,p,a,b}); normalize(); draw(); status('Bar added. Drag it into place, or click to add another.');
+}
+function drawBars(context) {
+  context.fillStyle = '#000';
+  for (const b of bars) {
+    if (b.o === 'h') context.fillRect(b.a-thickness/2,b.p-thickness/2,b.b-b.a+thickness,thickness);
+    else context.fillRect(b.p-thickness/2,b.a-thickness/2,thickness,b.b-b.a+thickness);
+  }
+}
+function draw() { ctx.clearRect(0,0,W,H); ctx.drawImage(paint,0,0); drawBars(ctx); }
+
+// Flood the wall mask, never the paint colors. Four-neighbor traversal prevents
+// leakage through corners and deliberately crosses boundaries of old paint.
+function fillAt(x,y) {
+  if (!color) { status('Choose a color from the palette first.'); return; }
+  x = clamp(Math.floor(x),0,W-1); y = clamp(Math.floor(y),0,H-1);
+  wallContext.clearRect(0,0,W,H); drawBars(wallContext);
+  const walls = wallContext.getImageData(0,0,W,H).data;
+  const start = y*W+x;
+  if (walls[start*4+3]) return;
+  checkpoint();
+  const pixel = document.createElement('canvas').getContext('2d');
+  pixel.fillStyle = color; pixel.fillRect(0,0,1,1);
+  const rgba = pixel.getImageData(0,0,1,1).data;
+  const image = ink.getImageData(0,0,W,H), data = image.data;
+  const seen = new Uint8Array(W*H), queue = new Int32Array(W*H);
+  let head=0,tail=1; queue[0]=start; seen[start]=1;
+  function visit(n) {
+    if (!seen[n] && !walls[n*4+3]) { seen[n]=1; queue[tail++]=n; }
+  }
+  while(head<tail) {
+    const n=queue[head++], i=n*4;
+    data[i]=rgba[0]; data[i+1]=rgba[1]; data[i+2]=rgba[2]; data[i+3]=255;
+    if(n%W>0) visit(n-1); if(n%W<W-1) visit(n+1);
+    if(n>=W) visit(n-W); if(n<W*(H-1)) visit(n+W);
+  }
+  ink.putImageData(image,0,0); draw(); status('Connected open area filled.');
+}
+function point(e) {
+  const r = board.getBoundingClientRect();
+  return { x: (e.clientX-r.left)*W/r.width, y: (e.clientY-r.top)*H/r.height };
+}
+function hit(x,y) {
+  // Prefer the closest centerline at junctions; outside junctions the bar is unambiguous.
+  return bars.map(b => ({b,d:Math.abs((b.o==='h'?y:x)-b.p),t:b.o==='h'?x:y}))
+    .filter(v => v.d<=thickness/2+2 && v.t>=v.b.a-thickness/2 && v.t<=v.b.b+thickness/2)
+    .sort((a,b)=>a.d-b.d)[0]?.b;
+}
+function movingRun(original, selected, bounds) {
+  const old = original[selected];
+  if (!old.edge) return old;
+  // Treat each protected frame side as one complete boundary.
+  return {...old, a: old.o === 'h' ? bounds.left : bounds.top,
+    b: old.o === 'h' ? bounds.right : bounds.bottom};
+}
+function movedBars(original, selected, p, bounds = frame) {
+  const result = original.map(b => ({...b}));
+  const old = movingRun(original, selected, bounds);
+  for (let i=0; i<result.length; i++) {
+    const b = result[i];
+    if (i === selected || (old.edge && b.edge === old.edge)) b.p = p;
+    if (b.o === old.o || !contains(old, b.p)) continue;
+    if (b.a === old.p) b.a = p;
+    if (b.b === old.p) b.b = p;
+  }
+  return result;
+}
+function dragLimits(d) {
+  const bounds = d.frame || frame, old = movingRun(d.original, d.index, bounds);
+  const horizontal = old.o === 'h';
+  let lo = old.edge ? thickness/2 : (horizontal ? bounds.top : bounds.left);
+  let hi = old.edge ? (horizontal ? H : W) - thickness/2 : (horizontal ? bounds.bottom : bounds.right);
+  for (let i=0; i<d.original.length; i++) {
+    const b = d.original[i];
+    if (i === d.index || (old.edge && b.edge === old.edge)) continue;
+    if (b.o === old.o) {
+      if (b.b <= old.a || b.a >= old.b) continue;
+      // Inner runs may meet and merge, but never pass through each other.
+      // Only a moving frame reserves clearance; an inner run can reach it.
+      const gap = old.edge ? 30 : 0;
+      if (b.p < old.p) lo = Math.max(lo, b.p + gap);
+      if (b.p > old.p) hi = Math.min(hi, b.p - gap);
+    } else if (contains(old, b.p)) {
+      // A connector between an interior run and another bar may shrink to zero
+      // when those runs merge. normalize() removes the collapsed connector.
+      // Keep clearance for frame edges and unsupported free endpoints.
+      const canCollapseAt = end => !old.edge && !b.edge && d.original.some((target, j) =>
+        j !== d.index && target.o === old.o && target.p === end &&
+        contains(target, b.p) && target.a < old.b && target.b > old.a);
+      if (b.a === old.p) hi = Math.min(hi, b.b - (canCollapseAt(b.b) ? 0 : thickness));
+      else if (b.b === old.p) lo = Math.max(lo, b.a + (canCollapseAt(b.a) ? 0 : thickness));
+      else if (contains(b, old.p)) {
+        // A crossing or a T support must still reach the moving bar.
+        lo = Math.max(lo, b.a); hi = Math.min(hi, b.b);
+      } else if (old.edge) {
+        // Also contain free endpoints left behind by intentional deletions.
+        if (b.b < old.p) lo = Math.max(lo, b.b + thickness);
+        if (b.a > old.p) hi = Math.min(hi, b.a - thickness);
+      }
+    }
+  }
+  // A pre-existing narrow cell should not make a stationary pointer jump.
+  return [Math.min(lo, old.p), Math.max(hi, old.p)];
+}
+// Resample from the paint at the START of a drag, so repeated pointer moves
+// never accumulate rounding errors. Each strip stretches between the moving
+// bar and its nearest stationary parallel boundaries (which may vary at T junctions).
+function resizePaint(d, position) {
+  const source = d.paint;
+  if (!source) return;
+  const output = new ImageData(new Uint8ClampedArray(source.data), W, H);
+  const moving = movingRun(d.original, d.index, d.frame || frame), horizontal = moving.o === 'h';
+  const length = horizontal ? H : W, breadth = horizontal ? W : H;
+  const parallel = d.original.filter((b,i) => i !== d.index && b.o === moving.o);
+  for (let cross = Math.max(0, Math.ceil(moving.a)); cross < Math.min(breadth, moving.b); cross++) {
+    const neighbors = parallel.filter(b => contains(b, cross + 0.5));
+    const before = neighbors.filter(b => b.p < moving.p);
+    const after = neighbors.filter(b => b.p > moving.p);
+    const low = Math.max(0, ...before.map(b => b.p));
+    const high = Math.min(length, ...after.map(b => b.p));
+    // A bar can pass or merge with another bar. Do not distort paint on the
+    // far side of that stationary boundary when this happens.
+    const pivot = clamp(position, low, high);
+    for (let along = low; along < high; along++) {
+      const center = along + 0.5, first = center < pivot;
+      const destA = first ? low : pivot, destB = first ? pivot : high;
+      const srcA = first ? low : moving.p, srcB = first ? moving.p : high;
+      let sample = srcA + (center - destA) * (srcB - srcA) / (destB - destA);
+      // Hidden pixels beneath black bars can contain older paint. Sample the
+      // visible color instead, preventing those pixels becoming colored stripes.
+      const insetA = srcA === 0 ? 0 : thickness / 2;
+      const insetB = srcB === length ? 0 : thickness / 2;
+      if (srcB - srcA > insetA + insetB) {
+        sample = clamp(sample, srcA + insetA, srcB - insetB - 0.001);
+      }
+      sample = clamp(Math.floor(sample), 0, length - 1);
+      const from = (horizontal ? sample * W + cross : cross * W + sample) * 4;
+      const to = (horizontal ? along * W + cross : cross * W + along) * 4;
+      output.data[to] = source.data[from];
+      output.data[to+1] = source.data[from+1];
+      output.data[to+2] = source.data[from+2];
+      output.data[to+3] = source.data[from+3];
+    }
+  }
+  ink.putImageData(output, 0, 0);
+}
+// Frame compression is a set of ordered spacing constraints. Separate bands
+// have separate bars: pressure only propagates through shared cells/junctions.
+function compressionGraph(d) {
+  const selected = d.original[d.index], direction = ['left','top'].includes(selected.edge) ? 1 : -1;
+  const nodes = [], parallel = [], endpoints = new Map();
+  const make = p => { const id=nodes.length; nodes.push({p: direction*p, parent:id}); return id; };
+  const root = id => { while(nodes[id].parent!==id) id=nodes[id].parent; return id; };
+  const join = (a,b) => { nodes[root(b)].parent=root(a); };
+  d.original.forEach((b,i) => { if(b.o===selected.o) parallel.push({bar:b,index:i,node:make(b.p)}); });
+  d.original.forEach((b,i) => {
+    if(b.o===selected.o) return;
+    const ends=[make(b.a),make(b.b)]; endpoints.set(i,ends);
+    for(const item of parallel) {
+      if(!contains(item.bar,b.p)) continue;
+      if(item.bar.p===b.a) join(item.node,ends[0]);
+      if(item.bar.p===b.b) join(item.node,ends[1]);
+    }
+  });
+  const source=root(parallel.find(v=>v.index===d.index).node);
+  const far=root(parallel.find(v=>v.bar.edge && v.index!==d.index).node);
+  const edges=new Map();
+  function connect(a,b) {
+    a=root(a);b=root(b);if(a===b)return;
+    if(nodes[a].p>nodes[b].p)[a,b]=[b,a];
+    // Do not expand a cell already made narrower by an interior-bar edit.
+    const gap=Math.min(30,nodes[b].p-nodes[a].p), key=a+':'+b;
+    edges.set(key,{a,b,gap});
+  }
+  for(let i=0;i<parallel.length;i++)for(let j=i+1;j<parallel.length;j++) {
+    const a=parallel[i],b=parallel[j];
+    if(a.bar.a<b.bar.b && b.bar.a<a.bar.b) connect(a.node,b.node);
+  }
+  for(const [i,ends] of endpoints) {
+    const b=d.original[i];connect(...ends);
+    for(const item of parallel) if(contains(item.bar,b.p)&&contains(b,item.bar.p)) {
+      connect(ends[0],item.node);connect(item.node,ends[1]);
+    }
+  }
+  const order=nodes.map((_,i)=>i).filter(i=>root(i)===i).sort((a,b)=>nodes[a].p-nodes[b].p);
+  for(const id of order){connect(source,id);connect(id,far);}
+  const outgoing=nodes.map(()=>[]);
+  for(const edge of edges.values()) outgoing[edge.a].push(edge);
+  const limit=nodes.map(()=>Infinity);limit[far]=nodes[far].p;
+  for(const id of [...order].reverse()) for(const e of outgoing[id]) limit[id]=Math.min(limit[id],limit[e.b]-e.gap);
+  return {nodes,parallel,endpoints,root,source,far,order,outgoing,limit,direction};
+}
+function compressFrame(d, requested) {
+  const g=d.compression || (d.compression=compressionGraph(d));
+  const {nodes,parallel,endpoints,root,source,order,outgoing,limit,direction}=g;
+  const axisLength=d.original[d.index].o==='h'?H:W;
+  requested=clamp(requested,thickness/2,axisLength-thickness/2);
+  const positions=nodes.map(n=>n.p);
+  positions[source]=Math.min(direction*requested,limit[source]);
+  for(const id of order) for(const e of outgoing[id]) positions[e.b]=Math.max(positions[e.b],positions[id]+e.gap);
+  const result=d.original.map(b=>({...b}));
+  for(const item of parallel) result[item.index].p=direction*positions[root(item.node)];
+  for(const [i,ends] of endpoints) {
+    result[i].a=direction*positions[root(ends[0])];
+    result[i].b=direction*positions[root(ends[1])];
+  }
+  bars=result;
+  frame={...d.frame,[d.original[d.index].edge]:result[d.index].p};
+  resizeCompressedPaint(d);
+}
+function resizeCompressedPaint(d) {
+  if(!d.paint)return;
+  const selected=d.original[d.index], horizontal=selected.o==='h';
+  const length=horizontal?H:W, start=horizontal?d.frame.left:d.frame.top, end=horizontal?d.frame.right:d.frame.bottom;
+  const output=new ImageData(new Uint8ClampedArray(d.paint.data),W,H), source=d.paint.data;
+  const parallel=d.original.map((b,i)=>({b,i})).filter(v=>v.b.o===selected.o);
+  for(let cross=start;cross<end;cross++) {
+    const anchors=[{from:0,to:0},...parallel.filter(v=>contains(v.b,cross+0.5))
+      .map(v=>({from:v.b.p,to:bars[v.i].p})),{from:length,to:length}].sort((a,b)=>a.from-b.from);
+    for(let j=0;j<anchors.length-1;j++) {
+      const a=anchors[j],b=anchors[j+1];if(b.to<=a.to||b.from<=a.from)continue;
+      for(let along=a.to;along<b.to;along++) {
+        let sample=a.from+(along+0.5-a.to)*(b.from-a.from)/(b.to-a.to);
+        const insetA=a.from===0?0:thickness/2,insetB=b.from===length?0:thickness/2;
+        if(b.from-a.from>insetA+insetB)sample=clamp(sample,a.from+insetA,b.from-insetB-0.001);
+        sample=clamp(Math.floor(sample),0,length-1);
+        const from=(horizontal?sample*W+cross:cross*W+sample)*4;
+        const to=(horizontal?along*W+cross:cross*W+along)*4;
+        output.data[to]=source[from];output.data[to+1]=source[from+1];
+        output.data[to+2]=source[from+2];output.data[to+3]=source[from+3];
+      }
+    }
+  }
+  ink.putImageData(output,0,0);
+}
+function moveDrag(x,y) {
+  const d=drag, old=d.original[d.index];
+  let p=Math.round(old.p+(old.o==='h'?y-d.start.y:x-d.start.x));
+  if(old.edge) { compressFrame(d,p); draw(); return; }
+  const [lo,hi] = dragLimits(d);
+  p=clamp(p,lo,hi);
+  const candidates=d.original.filter((b,i)=>i!==d.index&&!old.edge&&b.o===old.o&&b.a<old.b&&b.b>old.a&&b.p>=lo&&b.p<=hi);
+  const nearest=candidates.sort((a,b)=>Math.abs(a.p-p)-Math.abs(b.p-p))[0];
+  if(nearest&&Math.abs(nearest.p-p)<=snapDistance) p=nearest.p;
+  bars=movedBars(d.original,d.index,p,d.frame || frame);
+  resizePaint(d,p);
+  if (old.edge) frame = {...(d.frame || frame), [old.edge]: p};
+  draw();
+}
+board.addEventListener('contextmenu', e => {
+  e.preventDefault(); if(drag) return;
+  const {x,y}=point(e), b=hit(x,y);
+  if(b) removeSegment(b,clamp(b.o==='h'?x:y,b.a,b.b));
+});
+board.addEventListener('pointerdown', e => {
+  if(e.button!==0||drag) return;
+  const p=point(e), b=hit(p.x,p.y);
+  if(b) {
+    e.preventDefault();
+    drag={pointerId:e.pointerId,start:p,original:copyBars(),frame:{...frame},index:bars.indexOf(b),paint:ink.getImageData(0,0,W,H),changed:false};
+    board.setPointerCapture(e.pointerId);
+  } else if(mode) addBar(mode,p.x,p.y);
+  else fillAt(p.x,p.y);
+});
+board.addEventListener('pointermove', e => {
+  const p=point(e);
+  if(drag && e.pointerId===drag.pointerId) {
+    const b=drag.original[drag.index];
+    const delta=b.o==='h'?p.y-drag.start.y:p.x-drag.start.x;
+    if(!drag.changed && Math.abs(delta)<2) return;
+    if(!drag.changed) { checkpoint(); drag.changed=true; }
+    moveDrag(p.x,p.y);
+  } else {
+    const b=hit(p.x,p.y);
+    board.style.cursor=b?(b.o==='h'?'ns-resize':'ew-resize'):mode?'crosshair':'pointer';
+  }
+});
+function finishDrag(e) {
+  if(!drag || e.pointerId!==drag.pointerId) return;
+  const changed=drag.changed, isFrame=Boolean(drag.original[drag.index].edge); drag=null; normalize(); draw();
+  if(board.hasPointerCapture(e.pointerId)) board.releasePointerCapture(e.pointerId);
+  if(changed) status(isFrame ? 'Frame resized. Neighboring cells compress to their minimum spacing.' : 'Bar moved. Overlapping pieces merged.');
+}
+board.addEventListener('pointerup', finishDrag);
+board.addEventListener('pointercancel', finishDrag);
+board.addEventListener('lostpointercapture', finishDrag);
+function updateTools() {
+  document.getElementById('horizontal').setAttribute('aria-pressed',mode==='h');
+  document.getElementById('vertical').setAttribute('aria-pressed',mode==='v');
+  document.querySelectorAll('.swatch').forEach(b=>b.setAttribute('aria-pressed',!mode&&b.dataset.color===color));
+}
+for(const [id,o] of [['horizontal','h'],['vertical','v']]) document.getElementById(id).onclick=()=>{
+  mode=mode===o?null:o; updateTools(); status(mode?'Click open space to add a '+(o==='h'?'horizontal':'vertical')+' bar.':'Bar mode off. Choose a color to paint.');
+};
+for(const c of ['red','yellow','blue','white','gray','black']) {
+  const b=document.createElement('button'); b.className='swatch'; b.dataset.color=c;
+  b.style.background=c; b.title=c; b.setAttribute('aria-label','Paint '+c); b.setAttribute('aria-pressed','false');
+  b.onclick=()=>{color=c;mode=null;updateTools();status('Click an open area to paint it '+c+'.');};
+  document.getElementById('palette').appendChild(b);
+}
+document.getElementById('undo').onclick=undo;
+function saveImage() {
+  if (drag) { status('Finish dragging before saving the image.'); return; }
+  draw();
+  // Frame coordinates are bar centerlines: include the entire outside stroke.
+  const left = Math.max(0, frame.left - thickness / 2);
+  const top = Math.max(0, frame.top - thickness / 2);
+  const right = Math.min(W, frame.right + thickness / 2);
+  const bottom = Math.min(H, frame.bottom + thickness / 2);
+  const saved = document.createElement('canvas');
+  saved.width = right - left;
+  saved.height = bottom - top;
+  saved.getContext('2d').drawImage(board, left, top, saved.width, saved.height,
+    0, 0, saved.width, saved.height);
+  const link = document.createElement('a');
+  link.download = 'mondrian-' + new Date().toISOString().replace(/[:.]/g, '-') + '.png';
+  link.href = saved.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  status('PNG download started: the outer frame and everything inside.');
+}
+document.getElementById('save-image').onclick=saveImage;
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') { mode=null;updateTools();status('Bar mode off.'); }
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z') {e.preventDefault();undo();}
+});
+function positions(lo,hi) {
+  const count=3+Math.floor(Math.random()*3), gap=40, slack=hi-lo-(count-1)*gap;
+  const offsets=Array.from({length:count-2},()=>Math.floor(Math.random()*slack)).sort((a,b)=>a-b);
+  return [lo,...offsets.map((v,i)=>lo+v+(i+1)*gap),hi];
+}
+function initialize() {
+  ink.fillStyle='#eee';ink.fillRect(0,0,W,H);
+  const ys=positions(24,H-24), choices=['white','white','white','red','yellow','blue','gray','black'];
+  for(const p of ys) bars.push({o:'h',p,a:24,b:W-24, ...(p===24?{edge:'top'}:p===H-24?{edge:'bottom'}:{})});
+  for(let row=0;row<ys.length-1;row++) {
+    const xs=positions(24,W-24);
+    for(const p of xs) bars.push({o:'v',p,a:ys[row],b:ys[row+1], ...(p===24?{edge:'left'}:p===W-24?{edge:'right'}:{})});
+    for(let col=0;col<xs.length-1;col++) {
+      ink.fillStyle=choices[Math.floor(Math.random()*choices.length)];
+      ink.fillRect(xs[col],ys[row],xs[col+1]-xs[col],ys[row+1]-ys[row]);
+    }
+  }
+  normalize();draw();
+}
+initialize();
+</script>
+</body>
+</html>
