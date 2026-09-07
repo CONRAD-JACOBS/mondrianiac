@@ -44,7 +44,7 @@ h1 { font-size:clamp(36px,4.5vw,60px); line-height:1.04; letter-spacing:-2.8px; 
 .color-mark span:nth-child(2) { background:var(--blue); }
 .color-mark span:nth-child(3) { background:var(--yellow); }
 .actions { display:flex; align-items:center; gap:20px; }
-#undo { display:flex; align-items:center; gap:7px; border:0; background:none; padding:8px 0; font-size:12px; }
+#undo, #refresh { display:flex; align-items:center; gap:7px; border:0; background:none; padding:8px 0; font-size:12px; }
 #save-image { display:flex; align-items:center; gap:9px; padding:11px 15px; border:1px solid var(--ink); color:#fff; background:var(--ink); font-size:12px; font-weight:600; }
 #save-image:hover { background:var(--blue); border-color:var(--blue); }
 .toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:17px 22px 14px; }
@@ -109,7 +109,7 @@ blockquote footer { font-size:12px; }
 @media(max-width:480px) {
  .brand svg { width:28px; height:28px; } .header-right nav a:first-child { display:none; }
  .studio-title h2 { font-size:9px; letter-spacing:.04em; } .color-mark { gap:2px; } .color-mark span { width:5px; height:13px; }
- .actions { gap:10px; } #undo { font-size:11px; } #save-image { font-size:11px; gap:6px; } #save-image svg { width:14px; }
+ .studio-header { flex-wrap:wrap; } .studio-title { flex-basis:100%; } .actions { width:100%; justify-content:flex-end; gap:18px; } #undo, #refresh { font-size:11px; } #save-image { font-size:11px; gap:6px; } #save-image svg { width:14px; }
  .palette-group { width:100%; justify-content:space-between; } .palette-group .tool-label { font-size:9px; white-space:nowrap; } #palette { flex-wrap:nowrap; flex-shrink:0; gap:6px; } .swatch { width:27px; height:27px; } #save-image { white-space:nowrap; flex-shrink:0; } #save-image .mono { display:none; } .workspace-label { margin-left:auto; }
  .workspace { grid-template-columns:36px minmax(0,1fr); gap:7px; padding-inline:8px; } .tool { width:34px; height:34px; }
  #horizontal::after { left:6px; right:6px; top:13px; } #vertical::after { top:6px; bottom:6px; left:13px; }
@@ -139,6 +139,7 @@ blockquote footer { font-size:12px; }
     <div class="studio-header">
       <div class="studio-title"><span class="color-mark" aria-hidden="true"><span></span><span></span><span></span></span><h2 class="mono" id="studio-title">Composition studio</h2></div>
       <div class="actions">
+        <button id="refresh" type="button" title="Start a new composition (can be undone)"><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M16 7a6 6 0 1 0 0 6M16 2v5h-5"/></svg>Refresh</button>
         <button id="undo" type="button" disabled title="Undo (⌘Z or Ctrl+Z)"><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h8a5 5 0 0 1 0 10"/></svg>Undo</button>
         <button id="save-image" type="button"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10 2v11m-4-4 4 4 4-4M3 13v4h14v-4"/></svg>Save image <span class="mono" style="font-size:9px;opacity:.65">PNG</span></button>
       </div>
@@ -161,8 +162,8 @@ blockquote footer { font-size:12px; }
     <div class="guide-grid">
       <div><h3>01 &nbsp; Color</h3><p>Choose a swatch, then click an area. Color fills every connected space. Repaired rectangular cells keep their predominant color; repaint them to choose another.</p></div>
       <div><h3>02 &nbsp; Compose</h3><p>Drag a bar to resize the shapes. The light gray outer frame is a draggable guide. Move it inward to gently push neighboring lines together.</p></div>
-      <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. Exact overlaps merge, but touching segments stay independent. Dragging preserves existing rectangular cells; deletion can leave areas to repair.</p></div>
-      <div><h3>04 &nbsp; Keep exploring</h3><p>Undo a move with the button or ⌘Z / Ctrl+Z. Escape leaves line mode. Save image downloads just your picture, without the gray editing frame.</p></div>
+      <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. Exact overlaps merge. Touching pieces move together when they complete one side of a rectangular cell; otherwise they stay independent. Dragging preserves existing rectangular cells; deletion can leave areas to repair.</p></div>
+      <div><h3>04 &nbsp; Keep exploring</h3><p>Refresh starts a new composition. Undo restores it, or reverses a move (⌘Z / Ctrl+Z). Escape leaves line mode. Save image downloads just your picture, without the gray editing frame.</p></div>
     </div>
   </details>
   <section class="about" id="about" aria-labelledby="about-title">
@@ -252,7 +253,7 @@ function addBar(o, x, y) {
   const lower = stops.filter(v => v < t), upper = stops.filter(v => v > t);
   if (!lower.length || !upper.length) { status('A new bar needs a perpendicular bar on both sides.'); return; }
   const a = Math.max(...lower), b = Math.min(...upper);
-  checkpoint(); bars.push({o,p,a,b}); normalize(); settleRectangularColors(); draw(); status('Bar added. Drag it into place, or click to add another.');
+  checkpoint(); bars.push({o,p,a,b}); normalize(); mergeRepairedDividers(); settleRectangularColors(); draw(); status('Bar added. Drag it into place, or click to add another.');
 }
 function drawBars(context, drawing = bars) {
   // Draw editing guides last so they stay visible where interior bars meet them.
@@ -311,6 +312,28 @@ function analyzeCells(drawing = bars, bounds = frame) {
     if(i<total-nx&&bottom[i]&&labels[i]===labels[i+nx])regions[labels[i]].rectangular=false;
   }
   return {x,y,nx,ny,labels,regions};
+}
+// Join touching pieces only when a sound rectangle uses them as one side.
+// Otherwise their independent drag handles remain useful and are preserved.
+function mergeRepairedDividers() {
+  const cells=analyzeCells(),parent=bars.map((_,i)=>i);
+  const root=i=>{while(parent[i]!==i)i=parent[i];return i;};
+  for(const r of cells.regions)if(r.rectangular) {
+    for(const side of ['left','right','top','bottom']) {
+      const vertical=side==='left'||side==='right';
+      const supports=bars.map((b,i)=>({b,i})).filter(({b})=>!b.edge&&
+        b.o===(vertical?'v':'h')&&b.p===r[side]&&
+        b.a<(vertical?r.bottom:r.right)&&b.b>(vertical?r.top:r.left));
+      for(let j=1;j<supports.length;j++)parent[root(supports[j].i)]=root(supports[0].i);
+    }
+  }
+  const groups=new Map();
+  bars.forEach((b,i)=>{
+    const id=root(i),group=groups.get(id);
+    if(group){group.a=Math.min(group.a,b.a);group.b=Math.max(group.b,b.b);}
+    else groups.set(id,{...b});
+  });
+  bars=[...groups.values()];normalize();
 }
 const rectangleKey=r=>[r.left,r.right,r.top,r.bottom].join(':');
 function predominantColor(region,cells,image) {
@@ -618,9 +641,9 @@ board.addEventListener('pointermove', e => {
 });
 function finishDrag(e) {
   if(!drag || e.pointerId!==drag.pointerId) return;
-  const changed=drag.changed, blocked=drag.blocked, isFrame=Boolean(drag.original[drag.index].edge); drag=null; normalize(); draw();
+  const changed=drag.changed, blocked=drag.blocked, isFrame=Boolean(drag.original[drag.index].edge); drag=null; normalize(); if(changed)mergeRepairedDividers(); draw();
   if(board.hasPointerCapture(e.pointerId)) board.releasePointerCapture(e.pointerId);
-  if(changed) status(isFrame ? 'Frame resized. Neighboring cells compress to their minimum spacing.' : blocked ? 'Stopped to keep existing cells rectangular. Delete a segment to open the cell.' : 'Bar adjusted. Rectangular cells keep one color; touching segments stay independent.');
+  if(changed) status(isFrame ? 'Frame resized. Neighboring cells compress to their minimum spacing.' : blocked ? 'Stopped to keep existing cells rectangular. Delete a segment to open the cell.' : 'Bar adjusted. Completed cell dividers move together; rectangular cells keep one color.');
 }
 board.addEventListener('pointerup', finishDrag);
 board.addEventListener('pointercancel', finishDrag);
@@ -640,6 +663,14 @@ for(const c of ['red','yellow','blue','white','gray','black']) {
   document.getElementById('palette').appendChild(b);
 }
 document.getElementById('undo').onclick=undo;
+function refreshPicture() {
+  if(drag)return;
+  checkpoint();
+  bars=[];frame={left:24,right:W-24,top:24,bottom:H-24};
+  mode=null;color=null;updateTools();initialize();
+  status('Fresh composition. Undo brings back your previous picture.');
+}
+document.getElementById('refresh').onclick=refreshPicture;
 function saveImage() {
   if (drag) { status('Finish dragging before saving the image.'); return; }
   draw();
