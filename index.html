@@ -159,9 +159,9 @@ blockquote footer { font-size:12px; }
   <details class="guide" id="how-to">
     <summary><span class="guide-title"><span class="mono">A few simple moves</span>How to play</span></summary>
     <div class="guide-grid">
-      <div><h3>01 &nbsp; Color</h3><p>Choose a swatch, then click an area. Color flows through gaps into every connected space.</p></div>
+      <div><h3>01 &nbsp; Color</h3><p>Choose a swatch, then click an area. Color fills every connected space. Repaired rectangular cells keep their predominant color; repaint them to choose another.</p></div>
       <div><h3>02 &nbsp; Compose</h3><p>Drag a bar to resize the shapes. The light gray outer frame is a draggable guide. Move it inward to gently push neighboring lines together.</p></div>
-      <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. Overlapping bars merge; the outer frame stays intact.</p></div>
+      <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. Exact overlaps merge, but touching segments stay independent. Dragging preserves existing rectangular cells; deletion can leave areas to repair.</p></div>
       <div><h3>04 &nbsp; Keep exploring</h3><p>Undo a move with the button or ⌘Z / Ctrl+Z. Escape leaves line mode. Save image downloads just your picture, without the gray editing frame.</p></div>
     </div>
   </details>
@@ -182,7 +182,7 @@ blockquote footer { font-size:12px; }
 <script>
 'use strict';
 const board = document.getElementById('board'), ctx = board.getContext('2d');
-const W = board.width, H = board.height, thickness = 8, snapDistance = 10;
+const W = board.width, H = board.height, thickness = 8;
 // Paint colors are independent of the page typography.
 const paintColor = name => name === 'gray' ? '#D3D3D3' : name;
 const paint = document.createElement('canvas'); paint.width = W; paint.height = H;
@@ -209,14 +209,15 @@ function undo() {
   draw(); status('Previous edit restored.');
 }
 
-// Store a union of collinear intervals. Intersections are computed dynamically,
+// Merge actual overlaps, but preserve independent runs that only touch end-to-end.
+// Intersections are computed dynamically,
 // so both T junctions and full crossings delimit independently removable pieces.
 function normalize() {
   const sorted = bars.filter(b => b.b > b.a).sort((a,b) => a.o.localeCompare(b.o) || a.p-b.p || (a.edge || '').localeCompare(b.edge || '') || a.a-b.a);
   const result = [];
   for (const bar of sorted) {
     const last = result[result.length-1];
-    if (last && last.o === bar.o && last.p === bar.p && last.edge === bar.edge && bar.a <= last.b) last.b = Math.max(last.b, bar.b);
+    if (last && last.o === bar.o && last.p === bar.p && last.edge === bar.edge && (bar.a < last.b || (bar.edge && bar.a === last.b))) last.b = Math.max(last.b, bar.b);
     else result.push({...bar});
   }
   // The frame wins any overlap: discard absorbed interior runs without
@@ -251,12 +252,12 @@ function addBar(o, x, y) {
   const lower = stops.filter(v => v < t), upper = stops.filter(v => v > t);
   if (!lower.length || !upper.length) { status('A new bar needs a perpendicular bar on both sides.'); return; }
   const a = Math.max(...lower), b = Math.min(...upper);
-  checkpoint(); bars.push({o,p,a,b}); normalize(); draw(); status('Bar added. Drag it into place, or click to add another.');
+  checkpoint(); bars.push({o,p,a,b}); normalize(); settleRectangularColors(); draw(); status('Bar added. Drag it into place, or click to add another.');
 }
-function drawBars(context) {
+function drawBars(context, drawing = bars) {
   // Draw editing guides last so they stay visible where interior bars meet them.
   // Their opaque pixels still act as walls in the fill mask.
-  for (const b of [...bars.filter(b => !b.edge), ...bars.filter(b => b.edge)]) {
+  for (const b of [...drawing.filter(b => !b.edge), ...drawing.filter(b => b.edge)]) {
     context.fillStyle = b.edge ? '#c8c6c0' : '#000';
     if (b.o === 'h') context.fillRect(b.a-thickness/2,b.p-thickness/2,b.b-b.a+thickness,thickness);
     else context.fillRect(b.p-thickness/2,b.a-thickness/2,thickness,b.b-b.a+thickness);
@@ -264,36 +265,163 @@ function drawBars(context) {
 }
 function draw() { ctx.clearRect(0,0,W,H); ctx.drawImage(paint,0,0); drawBars(ctx); }
 
-// Flood the wall mask, never the paint colors. Four-neighbor traversal prevents
-// leakage through corners and deliberately crosses boundaries of old paint.
-function fillAt(x,y) {
-  // The workspace is a neutral surround, not part of the painting.
-  if (x <= frame.left || x >= frame.right || y <= frame.top || y >= frame.bottom) {
-    status('Choose an area inside the picture frame to paint.'); return;
+// Analyze actual open regions using a rectangular mesh at every bar coordinate.
+// This separates cell geometry from paint pixels and from draggable bar runs.
+function analyzeCells(drawing = bars, bounds = frame) {
+  const xs=new Set([bounds.left,bounds.right]),ys=new Set([bounds.top,bounds.bottom]);
+  for(const b of drawing) {
+    if(b.o==='v') {xs.add(b.p);ys.add(b.a);ys.add(b.b);}
+    else {ys.add(b.p);xs.add(b.a);xs.add(b.b);}
   }
-  if (!color) { status('Choose a color from the palette first.'); return; }
-  x = clamp(Math.floor(x),0,W-1); y = clamp(Math.floor(y),0,H-1);
-  wallContext.clearRect(0,0,W,H); drawBars(wallContext);
-  const walls = wallContext.getImageData(0,0,W,H).data;
-  const start = y*W+x;
-  if (walls[start*4+3]) return;
-  checkpoint();
-  const pixel = document.createElement('canvas').getContext('2d');
-  pixel.fillStyle = paintColor(color); pixel.fillRect(0,0,1,1);
-  const rgba = pixel.getImageData(0,0,1,1).data;
-  const image = ink.getImageData(0,0,W,H), data = image.data;
-  const seen = new Uint8Array(W*H), queue = new Int32Array(W*H);
-  let head=0,tail=1; queue[0]=start; seen[start]=1;
-  function visit(n) {
-    if (!seen[n] && !walls[n*4+3]) { seen[n]=1; queue[tail++]=n; }
+  const x=[...xs].filter(v=>v>=bounds.left&&v<=bounds.right).sort((a,b)=>a-b);
+  const y=[...ys].filter(v=>v>=bounds.top&&v<=bounds.bottom).sort((a,b)=>a-b);
+  const nx=x.length-1,ny=y.length-1,total=nx*ny;
+  const right=new Uint8Array(total),bottom=new Uint8Array(total),labels=new Int32Array(total).fill(-1);
+  const vertical=new Map(),horizontal=new Map();
+  for(const b of drawing) {
+    const table=b.o==='v'?vertical:horizontal;
+    if(!table.has(b.p))table.set(b.p,[]);table.get(b.p).push(b);
+  }
+  const blocked=(table,p,t)=>(table.get(p)||[]).some(b=>b.a<t&&b.b>t);
+  for(let row=0;row<ny;row++)for(let col=0;col<nx;col++) {
+    const i=row*nx+col;
+    right[i]=col===nx-1||blocked(vertical,x[col+1],(y[row]+y[row+1])/2);
+    bottom[i]=row===ny-1||blocked(horizontal,y[row+1],(x[col]+x[col+1])/2);
+  }
+  const regions=[];
+  for(let start=0;start<total;start++) {
+    if(labels[start]!==-1)continue;
+    const region={id:regions.length,tiles:[],left:Infinity,right:-Infinity,top:Infinity,bottom:-Infinity,area:0,rectangular:true};
+    const queue=[start];labels[start]=region.id;
+    for(let head=0;head<queue.length;head++) {
+      const i=queue[head],col=i%nx,row=Math.floor(i/nx);region.tiles.push(i);
+      region.left=Math.min(region.left,x[col]);region.right=Math.max(region.right,x[col+1]);
+      region.top=Math.min(region.top,y[row]);region.bottom=Math.max(region.bottom,y[row+1]);
+      region.area+=(x[col+1]-x[col])*(y[row+1]-y[row]);
+      const visit=j=>{if(labels[j]===-1){labels[j]=region.id;queue.push(j);}};
+      if(col&&!right[i-1])visit(i-1);if(col<nx-1&&!right[i])visit(i+1);
+      if(row&&!bottom[i-nx])visit(i-nx);if(row<ny-1&&!bottom[i])visit(i+nx);
+    }
+    region.rectangular=region.area===(region.right-region.left)*(region.bottom-region.top);
+    regions.push(region);
+  }
+  // A dangling bar is a slit inside a region, not a sound rectangular cell.
+  for(let i=0;i<total;i++) {
+    if(i%nx<nx-1&&right[i]&&labels[i]===labels[i+1])regions[labels[i]].rectangular=false;
+    if(i<total-nx&&bottom[i]&&labels[i]===labels[i+nx])regions[labels[i]].rectangular=false;
+  }
+  return {x,y,nx,ny,labels,regions};
+}
+const rectangleKey=r=>[r.left,r.right,r.top,r.bottom].join(':');
+function predominantColor(region,cells,image) {
+  const counts=new Map();let best=0xffffff,maximum=0;
+  for(const i of region.tiles) {
+    const col=i%cells.nx,row=Math.floor(i/cells.nx);
+    for(let y=cells.y[row];y<cells.y[row+1];y++)for(let x=cells.x[col];x<cells.x[col+1];x++) {
+      const at=(y*W+x)*4,key=(image.data[at]<<16)|(image.data[at+1]<<8)|image.data[at+2];
+      const count=(counts.get(key)||0)+1;counts.set(key,count);
+      if(count>maximum){maximum=count;best=key;}
+    }
+  }
+  return '#'+best.toString(16).padStart(6,'0');
+}
+function paintRectangle(r,value) {
+  ink.fillStyle=value;ink.fillRect(r.left,r.top,r.right-r.left,r.bottom-r.top);
+}
+function settleRectangularColors() {
+  const cells=analyzeCells(),image=ink.getImageData(0,0,W,H);
+  for(const r of cells.regions)if(r.rectangular)paintRectangle(r,predominantColor(r,cells,image));
+}
+function wallPixels(drawing) {
+  wallContext.clearRect(0,0,W,H);drawBars(wallContext,drawing);
+  return wallContext.getImageData(0,0,W,H).data;
+}
+function prepareCellEdit(d) {
+  if(d.cells)return;
+  d.frame=d.frame||{...frame};d.paint=d.paint||ink.getImageData(0,0,W,H);
+  d.cells=analyzeCells(d.original,d.frame);d.walls=wallPixels(d.original);
+  d.rectangles=d.cells.regions.filter(r=>r.rectangular).map(r=>({
+    region:r,color:predominantColor(r,d.cells,d.paint),
+    sides:['left','right','top','bottom'].map(side=>{
+      const vertical=side==='left'||side==='right';
+      return d.original.map((b,i)=>({b,i})).filter(({b})=>b.o===(vertical?'v':'h')&&b.p===r[side]&&
+        b.a<(vertical?r.bottom:r.right)&&b.b>(vertical?r.top:r.left)).map(({i})=>i);
+    })
+  }));
+}
+function preservedRectangles(d,next,cells) {
+  const valid=new Map(cells.regions.filter(r=>r.rectangular).map(r=>[rectangleKey(r),r]));
+  const colors=new Map(),sides=['left','right','top','bottom'];
+  for(const old of d.rectangles) {
+    const expected={};let bent=false;
+    old.sides.forEach((indices,i)=>{
+      const positions=[...new Set(indices.map(j=>next[j].p))];
+      if(positions.length!==1)bent=true;
+      expected[sides[i]]=positions[0];
+    });
+    if(bent)return null;
+    if(expected.left>expected.right||expected.top>expected.bottom)return null;
+    // Exact overlap may deliberately collapse an entire cell out of existence.
+    if(expected.left===expected.right||expected.top===expected.bottom)continue;
+    const key=rectangleKey(expected);
+    if(!valid.has(key))return null;
+    colors.set(key,old.color);
+  }
+  return colors;
+}
+function repairExposedPixels(d,image) {
+  const walls=wallPixels(bars),targets=new Uint8Array(W*H),queue=new Int32Array(W*H);
+  let head=0,tail=0;
+  for(let y=frame.top;y<frame.bottom;y++)for(let x=frame.left;x<frame.right;x++) {
+    const i=y*W+x;if(d.walls[i*4+3]&&!walls[i*4+3])targets[i]=1;
+  }
+  const neighbors=i=>[...(i%W?[i-1]:[]),...(i%W<W-1?[i+1]:[]),...(i>=W?[i-W]:[]),...(i<W*(H-1)?[i+W]:[])];
+  const copy=(to,from)=>{for(let c=0;c<4;c++)image.data[to*4+c]=image.data[from*4+c];};
+  // Only pixels uncovered by a moving bar are repaired. Existing visible paint
+  // in an unrepaired region stays exactly where deletion left it.
+  for(let i=0;i<targets.length;i++)if(targets[i]) {
+    const source=neighbors(i).find(j=>!walls[j*4+3]&&!d.walls[j*4+3]);
+    if(source!==undefined){copy(i,source);targets[i]=2;queue[tail++]=i;}
   }
   while(head<tail) {
-    const n=queue[head++], i=n*4;
-    data[i]=rgba[0]; data[i+1]=rgba[1]; data[i+2]=rgba[2]; data[i+3]=255;
-    if(n%W>0) visit(n-1); if(n%W<W-1) visit(n+1);
-    if(n>=W) visit(n-W); if(n<W*(H-1)) visit(n+W);
+    const i=queue[head++];for(const j of neighbors(i))if(targets[j]===1){copy(j,i);targets[j]=2;queue[tail++]=j;}
   }
-  ink.putImageData(image,0,0); draw(); status('Connected open area filled.');
+}
+function paintEditedCells(d,cells,colors) {
+  const image=new ImageData(new Uint8ClampedArray(d.paint.data),W,H);
+  repairExposedPixels(d,image);
+  // A moving outer guide clears its former extent, without stretching paint
+  // remnants in irregular regions. Rectangular cells are painted from identity.
+  if(d.original[d.index].edge) {
+    const old=d.frame;
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++) {
+      if(x>=frame.left&&x<frame.right&&y>=frame.top&&y<frame.bottom)continue;
+      if(x>=old.left&&x<old.right&&y>=old.top&&y<old.bottom) {
+        const i=(y*W+x)*4;image.data[i]=238;image.data[i+1]=238;image.data[i+2]=238;image.data[i+3]=255;
+      }
+    }
+  }
+  ink.putImageData(image,0,0);
+  for(const r of cells.regions)if(r.rectangular) {
+    paintRectangle(r,colors.get(rectangleKey(r))||predominantColor(r,cells,image));
+  }
+}
+// Fill a connected geometric region, including paint hidden under its borders.
+function fillAt(x,y) {
+  if(x<=frame.left||x>=frame.right||y<=frame.top||y>=frame.bottom) {
+    status('Choose an area inside the picture frame to paint.');return;
+  }
+  if(!color){status('Choose a color from the palette first.');return;}
+  if(wallPixels(bars)[(Math.floor(y)*W+Math.floor(x))*4+3])return;
+  const cells=analyzeCells();
+  const col=cells.x.findIndex(v=>v>x)-1,row=cells.y.findIndex(v=>v>y)-1;
+  const region=cells.regions[cells.labels[row*cells.nx+col]];
+  checkpoint();ink.fillStyle=paintColor(color);
+  for(const i of region.tiles) {
+    const c=i%cells.nx,r=Math.floor(i/cells.nx);
+    ink.fillRect(cells.x[c],cells.y[r],cells.x[c+1]-cells.x[c],cells.y[r+1]-cells.y[r]);
+  }
+  draw();status('Connected open area filled.');
 }
 function point(e) {
   const r = board.getBoundingClientRect();
@@ -333,7 +461,7 @@ function dragLimits(d) {
     const b = d.original[i];
     if (i === d.index || (old.edge && b.edge === old.edge)) continue;
     if (b.o === old.o) {
-      if (b.b < old.a || b.a > old.b) continue;
+      if (b.b <= old.a || b.a >= old.b) continue;
       // Inner runs may meet and merge, but never pass through each other.
       // Only a moving frame reserves clearance; an inner run can reach it.
       const gap = old.edge ? 30 : 0;
@@ -345,7 +473,7 @@ function dragLimits(d) {
       // Keep clearance for frame edges and unsupported free endpoints.
       const canCollapseAt = end => !old.edge && !b.edge && d.original.some((target, j) =>
         j !== d.index && target.o === old.o && target.p === end &&
-        contains(target, b.p) && target.a <= old.b && target.b >= old.a);
+        contains(target, b.p) && target.a < old.b && target.b > old.a);
       if (b.a === old.p) hi = Math.min(hi, b.b - (canCollapseAt(b.b) ? 0 : thickness));
       else if (b.b === old.p) lo = Math.max(lo, b.a + (canCollapseAt(b.a) ? 0 : thickness));
       else if (contains(b, old.p)) {
@@ -361,65 +489,6 @@ function dragLimits(d) {
   // A pre-existing narrow cell should not make a stationary pointer jump.
   return [Math.min(lo, old.p), Math.max(hi, old.p)];
 }
-// A perpendicular bar can hide older colors on either side of its centerline.
-// When stretching paint, sample the visible color on that same side instead
-// of pulling a hidden stripe out past the end of the perpendicular bar.
-function paintSampleIndex(d, horizontal, cross, along) {
-  const orientation = horizontal ? 'v' : 'h';
-  const cache = d.paintSampleBars || (d.paintSampleBars = new Map());
-  const key = orientation + cross;
-  if (!cache.has(key)) cache.set(key, d.original.filter(b => b.o === orientation &&
-    cross + 0.5 >= b.p - thickness/2 && cross + 0.5 < b.p + thickness/2));
-  let visibleCross = cross;
-  for (const b of cache.get(key)) {
-    if (along + 0.5 < b.a - thickness/2 || along + 0.5 >= b.b + thickness/2) continue;
-    visibleCross = cross + 0.5 < b.p ? b.p - thickness/2 - 1 : b.p + thickness/2;
-  }
-  visibleCross = clamp(visibleCross, 0, (horizontal ? W : H) - 1);
-  return (horizontal ? along * W + visibleCross : visibleCross * W + along) * 4;
-}
-// Resample from the paint at the START of a drag, so repeated pointer moves
-// never accumulate rounding errors. Each strip stretches between the moving
-// bar and its nearest stationary parallel boundaries (which may vary at T junctions).
-function resizePaint(d, position) {
-  const source = d.paint;
-  if (!source) return;
-  const output = new ImageData(new Uint8ClampedArray(source.data), W, H);
-  const moving = movingRun(d.original, d.index, d.frame || frame), horizontal = moving.o === 'h';
-  const length = horizontal ? H : W, breadth = horizontal ? W : H;
-  const parallel = d.original.filter((b,i) => i !== d.index && b.o === moving.o);
-  for (let cross = Math.max(0, Math.ceil(moving.a)); cross < Math.min(breadth, moving.b); cross++) {
-    const neighbors = parallel.filter(b => contains(b, cross + 0.5));
-    const before = neighbors.filter(b => b.p < moving.p);
-    const after = neighbors.filter(b => b.p > moving.p);
-    const low = Math.max(0, ...before.map(b => b.p));
-    const high = Math.min(length, ...after.map(b => b.p));
-    // A bar can pass or merge with another bar. Do not distort paint on the
-    // far side of that stationary boundary when this happens.
-    const pivot = clamp(position, low, high);
-    for (let along = low; along < high; along++) {
-      const center = along + 0.5, first = center < pivot;
-      const destA = first ? low : pivot, destB = first ? pivot : high;
-      const srcA = first ? low : moving.p, srcB = first ? moving.p : high;
-      let sample = srcA + (center - destA) * (srcB - srcA) / (destB - destA);
-      // Hidden pixels beneath black bars can contain older paint. Sample the
-      // visible color instead, preventing those pixels becoming colored stripes.
-      const insetA = srcA === 0 ? 0 : thickness / 2;
-      const insetB = srcB === length ? 0 : thickness / 2;
-      if (srcB - srcA > insetA + insetB) {
-        sample = clamp(sample, srcA + insetA, srcB - insetB - 0.001);
-      }
-      sample = clamp(Math.floor(sample), 0, length - 1);
-      const from = paintSampleIndex(d, horizontal, cross, sample);
-      const to = (horizontal ? along * W + cross : cross * W + along) * 4;
-      output.data[to] = source.data[from];
-      output.data[to+1] = source.data[from+1];
-      output.data[to+2] = source.data[from+2];
-      output.data[to+3] = source.data[from+3];
-    }
-  }
-  ink.putImageData(output, 0, 0);
-}
 // Frame compression is a set of ordered spacing constraints. Separate bands
 // have separate bars: pressure only propagates through shared cells/junctions.
 function compressionGraph(d) {
@@ -429,6 +498,12 @@ function compressionGraph(d) {
   const root = id => { while(nodes[id].parent!==id) id=nodes[id].parent; return id; };
   const join = (a,b) => { nodes[root(b)].parent=root(a); };
   d.original.forEach((b,i) => { if(b.o===selected.o) parallel.push({bar:b,index:i,node:make(b.p)}); });
+  // Frame pressure moves collinear pieces of an existing cell side together,
+  // without permanently merging their independent drag handles.
+  for(let i=0;i<parallel.length;i++)for(let j=i+1;j<parallel.length;j++) {
+    const a=parallel[i],b=parallel[j];
+    if(a.bar.p===b.bar.p && a.bar.a<=b.bar.b && b.bar.a<=a.bar.b) join(a.node,b.node);
+  }
   d.original.forEach((b,i) => {
     if(b.o===selected.o) return;
     const ends=[make(b.a),make(b.b)]; endpoints.set(i,ends);
@@ -480,47 +555,37 @@ function compressFrame(d, requested) {
     result[i].a=direction*positions[root(ends[0])];
     result[i].b=direction*positions[root(ends[1])];
   }
-  bars=result;
-  frame={...d.frame,[d.original[d.index].edge]:result[d.index].p};
-  resizeCompressedPaint(d);
-}
-function resizeCompressedPaint(d) {
-  if(!d.paint)return;
-  const selected=d.original[d.index], horizontal=selected.o==='h';
-  const length=horizontal?H:W, start=horizontal?d.frame.left:d.frame.top, end=horizontal?d.frame.right:d.frame.bottom;
-  const output=new ImageData(new Uint8ClampedArray(d.paint.data),W,H), source=d.paint.data;
-  const parallel=d.original.map((b,i)=>({b,i})).filter(v=>v.b.o===selected.o);
-  for(let cross=start;cross<end;cross++) {
-    const anchors=[{from:0,to:0},...parallel.filter(v=>contains(v.b,cross+0.5))
-      .map(v=>({from:v.b.p,to:bars[v.i].p})),{from:length,to:length}].sort((a,b)=>a.from-b.from);
-    for(let j=0;j<anchors.length-1;j++) {
-      const a=anchors[j],b=anchors[j+1];if(b.to<=a.to||b.from<=a.from)continue;
-      for(let along=a.to;along<b.to;along++) {
-        let sample=a.from+(along+0.5-a.to)*(b.from-a.from)/(b.to-a.to);
-        const insetA=a.from===0?0:thickness/2,insetB=b.from===length?0:thickness/2;
-        if(b.from-a.from>insetA+insetB)sample=clamp(sample,a.from+insetA,b.from-insetB-0.001);
-        sample=clamp(Math.floor(sample),0,length-1);
-        const from=paintSampleIndex(d,horizontal,cross,sample);
-        const to=(horizontal?along*W+cross:cross*W+along)*4;
-        output.data[to]=source[from];output.data[to+1]=source[from+1];
-        output.data[to+2]=source[from+2];output.data[to+3]=source[from+3];
-      }
-    }
-  }
-  ink.putImageData(output,0,0);
+  return {bars:result, frame:{...d.frame,[d.original[d.index].edge]:result[d.index].p}};
 }
 function moveDrag(x,y) {
   const d=drag, old=d.original[d.index];
+  prepareCellEdit(d);
   let p=Math.round(old.p+(old.o==='h'?y-d.start.y:x-d.start.x));
-  if(old.edge) { compressFrame(d,p); draw(); return; }
-  const [lo,hi] = dragLimits(d);
-  p=clamp(p,lo,hi);
-  const candidates=d.original.filter((b,i)=>i!==d.index&&!old.edge&&b.o===old.o&&b.a<=old.b&&b.b>=old.a&&b.p>=lo&&b.p<=hi);
-  const nearest=candidates.sort((a,b)=>Math.abs(a.p-p)-Math.abs(b.p-p))[0];
-  if(nearest&&Math.abs(nearest.p-p)<=snapDistance) p=nearest.p;
-  bars=movedBars(d.original,d.index,p,d.frame || frame);
-  resizePaint(d,p);
-  if (old.edge) frame = {...(d.frame || frame), [old.edge]: p};
+  if(!old.edge) { const [lo,hi]=dragLimits(d); p=clamp(p,lo,hi); }
+  const candidate = position => {
+    const state = old.edge ? compressFrame(d,position)
+      : {bars:movedBars(d.original,d.index,position,d.frame),frame:{...d.frame}};
+    state.cells=analyzeCells(state.bars,state.frame);
+    state.colors=preservedRectangles(d,state.bars,state.cells);
+    return state;
+  };
+  let next=candidate(p), blocked=false;
+  // A drag may reshape an area already broken by deletion, but must not break
+  // any rectangle that existed at the start of this gesture.
+  const direction=Math.sign(p-old.p);
+  if(direction && !candidate(old.p+direction).colors) { next=candidate(old.p); blocked=true; }
+  else if(!next.colors) {
+    blocked=true;
+    let low=0,high=Math.abs(p-old.p);
+    while(low<high) {
+      const mid=Math.ceil((low+high)/2);
+      if(candidate(old.p+direction*mid).colors) low=mid; else high=mid-1;
+    }
+    next=candidate(old.p+direction*low);
+  }
+  bars=next.bars;frame=next.frame;d.blocked=blocked;
+  if(next.bars[d.index].p===old.p) ink.putImageData(d.paint,0,0);
+  else paintEditedCells(d,next.cells,next.colors);
   draw();
 }
 board.addEventListener('contextmenu', e => {
@@ -553,9 +618,9 @@ board.addEventListener('pointermove', e => {
 });
 function finishDrag(e) {
   if(!drag || e.pointerId!==drag.pointerId) return;
-  const changed=drag.changed, isFrame=Boolean(drag.original[drag.index].edge); drag=null; normalize(); draw();
+  const changed=drag.changed, blocked=drag.blocked, isFrame=Boolean(drag.original[drag.index].edge); drag=null; normalize(); draw();
   if(board.hasPointerCapture(e.pointerId)) board.releasePointerCapture(e.pointerId);
-  if(changed) status(isFrame ? 'Frame resized. Neighboring cells compress to their minimum spacing.' : 'Bar moved. Overlapping pieces merged.');
+  if(changed) status(isFrame ? 'Frame resized. Neighboring cells compress to their minimum spacing.' : blocked ? 'Stopped to keep existing cells rectangular. Delete a segment to open the cell.' : 'Bar adjusted. Rectangular cells keep one color; touching segments stay independent.');
 }
 board.addEventListener('pointerup', finishDrag);
 board.addEventListener('pointercancel', finishDrag);

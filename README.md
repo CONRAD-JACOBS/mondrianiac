@@ -7,7 +7,8 @@ A small, free playground for line, color, proportion, and balance, inspired by P
 ## Use the studio
 
 - Select a color, then click an area. Paint fills every connected open space.
-- Drag interior bars to reshape cells. Overlapping bars merge, including into the protected outer frame.
+- Drag interior bars to reshape cells. There is no automatic snapping. Touching segments remain independent; true overlaps merge, including into the protected outer frame.
+- Dragging preserves existing rectangular cells. Deletion may leave irregular or mixed-color areas; adding or moving bars repairs them. A repaired rectangle takes its predominant existing color and can then be repainted.
 - Drag the frame inward to compress neighboring cells while keeping minimum spacing.
 - Choose a horizontal or vertical line tool, then click open space to add a bar.
 - Right-click an interior bar to remove the segment between adjacent perpendicular intersections.
