@@ -12,9 +12,9 @@ A small, free playground for line, color, proportion, and balance, inspired by P
 - Choose a horizontal or vertical line tool, then click open space to add a bar.
 - Right-click an interior bar to remove the segment between adjacent perpendicular intersections.
 - Undo with the button or Command/Ctrl+Z. Escape leaves line mode.
-- Save image downloads a PNG cropped to the full outer frame.
+- Save image downloads a PNG of the visible artwork inside the editing frame, with no edge bars.
 
-The thin boundary around the workspace marks its maximum extent. The bold black frame inside it belongs to the picture.
+The thin boundary around the workspace marks its maximum extent. The light gray frame inside it is a draggable editing guide, excluded from saved pictures. Interior bars remain black.
 
 ## Files and local preview
 

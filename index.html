@@ -160,9 +160,9 @@ blockquote footer { font-size:12px; }
     <summary><span class="guide-title"><span class="mono">A few simple moves</span>How to play</span></summary>
     <div class="guide-grid">
       <div><h3>01 &nbsp; Color</h3><p>Choose a swatch, then click an area. Color flows through gaps into every connected space.</p></div>
-      <div><h3>02 &nbsp; Compose</h3><p>Drag a bar to resize the shapes. Move the outer frame inward to gently push neighboring lines together.</p></div>
+      <div><h3>02 &nbsp; Compose</h3><p>Drag a bar to resize the shapes. The light gray outer frame is a draggable guide. Move it inward to gently push neighboring lines together.</p></div>
       <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. Overlapping bars merge; the outer frame stays intact.</p></div>
-      <div><h3>04 &nbsp; Keep exploring</h3><p>Undo a move with the button or ⌘Z / Ctrl+Z. Escape leaves line mode. Save image downloads your picture, complete with its black frame.</p></div>
+      <div><h3>04 &nbsp; Keep exploring</h3><p>Undo a move with the button or ⌘Z / Ctrl+Z. Escape leaves line mode. Save image downloads just your picture, without the gray editing frame.</p></div>
     </div>
   </details>
   <section class="about" id="about" aria-labelledby="about-title">
@@ -254,8 +254,10 @@ function addBar(o, x, y) {
   checkpoint(); bars.push({o,p,a,b}); normalize(); draw(); status('Bar added. Drag it into place, or click to add another.');
 }
 function drawBars(context) {
-  context.fillStyle = '#000';
-  for (const b of bars) {
+  // Draw editing guides last so they stay visible where interior bars meet them.
+  // Their opaque pixels still act as walls in the fill mask.
+  for (const b of [...bars.filter(b => !b.edge), ...bars.filter(b => b.edge)]) {
+    context.fillStyle = b.edge ? '#c8c6c0' : '#000';
     if (b.o === 'h') context.fillRect(b.a-thickness/2,b.p-thickness/2,b.b-b.a+thickness,thickness);
     else context.fillRect(b.p-thickness/2,b.a-thickness/2,thickness,b.b-b.a+thickness);
   }
@@ -559,11 +561,12 @@ document.getElementById('undo').onclick=undo;
 function saveImage() {
   if (drag) { status('Finish dragging before saving the image.'); return; }
   draw();
-  // Frame coordinates are bar centerlines: include the entire outside stroke.
-  const left = Math.max(0, frame.left - thickness / 2);
-  const top = Math.max(0, frame.top - thickness / 2);
-  const right = Math.min(W, frame.right + thickness / 2);
-  const bottom = Math.min(H, frame.bottom + thickness / 2);
+  // Save the visible artwork inside the guides. Cropping at their inner
+  // edges also excludes older paint hidden beneath the draggable strokes.
+  const left = Math.max(0, frame.left + thickness / 2);
+  const top = Math.max(0, frame.top + thickness / 2);
+  const right = Math.min(W, frame.right - thickness / 2);
+  const bottom = Math.min(H, frame.bottom - thickness / 2);
   const saved = document.createElement('canvas');
   saved.width = right - left;
   saved.height = bottom - top;
@@ -575,7 +578,7 @@ function saveImage() {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  status('PNG download started: the outer frame and everything inside.');
+  status('PNG download started: your picture without the editing frame.');
 }
 document.getElementById('save-image').onclick=saveImage;
 document.addEventListener('keydown',e=>{
