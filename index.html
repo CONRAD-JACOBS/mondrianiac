@@ -333,7 +333,7 @@ function dragLimits(d) {
     const b = d.original[i];
     if (i === d.index || (old.edge && b.edge === old.edge)) continue;
     if (b.o === old.o) {
-      if (b.b <= old.a || b.a >= old.b) continue;
+      if (b.b < old.a || b.a > old.b) continue;
       // Inner runs may meet and merge, but never pass through each other.
       // Only a moving frame reserves clearance; an inner run can reach it.
       const gap = old.edge ? 30 : 0;
@@ -345,7 +345,7 @@ function dragLimits(d) {
       // Keep clearance for frame edges and unsupported free endpoints.
       const canCollapseAt = end => !old.edge && !b.edge && d.original.some((target, j) =>
         j !== d.index && target.o === old.o && target.p === end &&
-        contains(target, b.p) && target.a < old.b && target.b > old.a);
+        contains(target, b.p) && target.a <= old.b && target.b >= old.a);
       if (b.a === old.p) hi = Math.min(hi, b.b - (canCollapseAt(b.b) ? 0 : thickness));
       else if (b.b === old.p) lo = Math.max(lo, b.a + (canCollapseAt(b.a) ? 0 : thickness));
       else if (contains(b, old.p)) {
@@ -360,6 +360,23 @@ function dragLimits(d) {
   }
   // A pre-existing narrow cell should not make a stationary pointer jump.
   return [Math.min(lo, old.p), Math.max(hi, old.p)];
+}
+// A perpendicular bar can hide older colors on either side of its centerline.
+// When stretching paint, sample the visible color on that same side instead
+// of pulling a hidden stripe out past the end of the perpendicular bar.
+function paintSampleIndex(d, horizontal, cross, along) {
+  const orientation = horizontal ? 'v' : 'h';
+  const cache = d.paintSampleBars || (d.paintSampleBars = new Map());
+  const key = orientation + cross;
+  if (!cache.has(key)) cache.set(key, d.original.filter(b => b.o === orientation &&
+    cross + 0.5 >= b.p - thickness/2 && cross + 0.5 < b.p + thickness/2));
+  let visibleCross = cross;
+  for (const b of cache.get(key)) {
+    if (along + 0.5 < b.a - thickness/2 || along + 0.5 >= b.b + thickness/2) continue;
+    visibleCross = cross + 0.5 < b.p ? b.p - thickness/2 - 1 : b.p + thickness/2;
+  }
+  visibleCross = clamp(visibleCross, 0, (horizontal ? W : H) - 1);
+  return (horizontal ? along * W + visibleCross : visibleCross * W + along) * 4;
 }
 // Resample from the paint at the START of a drag, so repeated pointer moves
 // never accumulate rounding errors. Each strip stretches between the moving
@@ -393,7 +410,7 @@ function resizePaint(d, position) {
         sample = clamp(sample, srcA + insetA, srcB - insetB - 0.001);
       }
       sample = clamp(Math.floor(sample), 0, length - 1);
-      const from = (horizontal ? sample * W + cross : cross * W + sample) * 4;
+      const from = paintSampleIndex(d, horizontal, cross, sample);
       const to = (horizontal ? along * W + cross : cross * W + along) * 4;
       output.data[to] = source.data[from];
       output.data[to+1] = source.data[from+1];
@@ -483,7 +500,7 @@ function resizeCompressedPaint(d) {
         const insetA=a.from===0?0:thickness/2,insetB=b.from===length?0:thickness/2;
         if(b.from-a.from>insetA+insetB)sample=clamp(sample,a.from+insetA,b.from-insetB-0.001);
         sample=clamp(Math.floor(sample),0,length-1);
-        const from=(horizontal?sample*W+cross:cross*W+sample)*4;
+        const from=paintSampleIndex(d,horizontal,cross,sample);
         const to=(horizontal?along*W+cross:cross*W+along)*4;
         output.data[to]=source[from];output.data[to+1]=source[from+1];
         output.data[to+2]=source[from+2];output.data[to+3]=source[from+3];
@@ -498,7 +515,7 @@ function moveDrag(x,y) {
   if(old.edge) { compressFrame(d,p); draw(); return; }
   const [lo,hi] = dragLimits(d);
   p=clamp(p,lo,hi);
-  const candidates=d.original.filter((b,i)=>i!==d.index&&!old.edge&&b.o===old.o&&b.a<old.b&&b.b>old.a&&b.p>=lo&&b.p<=hi);
+  const candidates=d.original.filter((b,i)=>i!==d.index&&!old.edge&&b.o===old.o&&b.a<=old.b&&b.b>=old.a&&b.p>=lo&&b.p<=hi);
   const nearest=candidates.sort((a,b)=>Math.abs(a.p-p)-Math.abs(b.p-p))[0];
   if(nearest&&Math.abs(nearest.p-p)<=snapDistance) p=nearest.p;
   bars=movedBars(d.original,d.index,p,d.frame || frame);
