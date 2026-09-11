@@ -27,7 +27,40 @@ The app runs entirely in the browser, with no backend, account requirement, exte
 
 ## Hosting
 
-This is a static GitHub Pages site, published from the root of the `main` branch. To enable publishing manually, choose **Settings → Pages → Deploy from a branch → main → /(root)**.
+GitHub Actions publishes both branches together, using `.github/workflows/pages.yml`. Pages settings must use **GitHub Actions** as the source.
+
+| Version | Branch | URL | Local folder |
+| --- | --- | --- | --- |
+| Public | `main` | https://conrad-jacobs.github.io/mondrianiac/ | `mondrianiac` |
+| Development | `dev` | https://conrad-jacobs.github.io/mondrianiac/dev/ | `mondrianiac-dev` |
+
+The development site is publicly accessible, marked with a yellow banner, and requests that search engines not index it. It is not a private staging area. Both folders use `index.html`; do not edit the ignored `mondrian_7.html` reference.
+
+### Test a change
+
+Edit `mondrianiac-dev/index.html`, then open that file in your browser for a local preview. To update the online testing site:
+
+```sh
+cd /Users/neurorobots/MEGA/JACOB/HTML_FUN/mondrianiac-dev
+git add index.html  # add other changed files explicitly if needed
+git commit -m "Describe the change"
+git push origin dev
+```
+
+### Release a tested change
+
+With both folders' changes committed:
+
+```sh
+cd /Users/neurorobots/MEGA/JACOB/HTML_FUN/mondrianiac
+git pull --ff-only origin main
+git merge dev
+git push origin main
+```
+
+This publishes the tested development changes to the public site. If Git reports a conflict, resolve it before committing and pushing. After changes made directly on `main`, bring them into development with `git merge main` in `mondrianiac-dev`, then `git push origin dev`.
+
+Every deployment fetches both branches, so a development push keeps the public site on `main`. Check the repository’s Actions tab for deployment progress, then reload the browser. The app's Refresh button starts a new painting; it does not reload the website.
 
 All asset paths are relative, so the same files work at a GitHub Pages project URL or on a custom domain. A domain can be configured later through the repository's Pages settings; no app rewrite is needed.
 

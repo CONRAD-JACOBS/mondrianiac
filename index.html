@@ -124,6 +124,16 @@ blockquote footer { font-size:12px; }
 </style>
 </head>
 <body>
+<script>
+// Identify the published preview and the separate local development folder.
+if (/(?:^|\/)(?:dev|mondrianiac-dev)\/(?:index\.html)?$/.test(location.pathname)) {
+  document.title = 'Development — ' + document.title;
+  const banner = document.createElement('aside');
+  banner.textContent = 'DEVELOPMENT VERSION · Changes here are for testing';
+  banner.style.cssText = 'padding:10px 16px;background:#f5df4d;color:#191919;text-align:center;font:600 12px/1.5 sans-serif;letter-spacing:.06em';
+  document.body.appendChild(banner);
+}
+</script>
 <a class="skip" href="#studio">Skip to the studio</a>
 <header class="site-header wrap">
   <a class="brand" href="./" aria-label="Mondrianiac home">
