@@ -429,8 +429,7 @@ function repairExposedPixels(d,image) {
   }
   const neighbors=i=>[...(i%W?[i-1]:[]),...(i%W<W-1?[i+1]:[]),...(i>=W?[i-W]:[]),...(i<W*(H-1)?[i+W]:[])];
   const copy=(to,from)=>{for(let c=0;c<4;c++)image.data[to*4+c]=image.data[from*4+c];};
-  // Only pixels uncovered by a moving bar are repaired. Existing visible paint
-  // in an unrepaired region stays exactly where deletion left it.
+  // Repair uncovered bar pixels before assigning colors to the edited cells.
   for(let i=0;i<targets.length;i++)if(targets[i]) {
     const source=neighbors(i).find(j=>!walls[j*4+3]&&!d.walls[j*4+3]&&
       j%W>=d.frame.left&&j%W<d.frame.right&&Math.floor(j/W)>=d.frame.top&&Math.floor(j/W)<d.frame.bottom);
@@ -455,12 +454,45 @@ function extendFramePaint(d,image) {
     image.data[i]=value>>16;image.data[i+1]=(value>>8)&255;image.data[i+2]=value&255;image.data[i+3]=255;
   }
 }
+// Follow irregular regions through the same bar movement as rectangular
+// cells. Project mesh samples between their bounding parallel bars; use them
+// only to identify regions, never to stretch old pixel boundaries.
+function irregularCellColors(d,cells) {
+  const horizontal=d.original[d.index].o==='h',votes=new Map();
+  const parallel=d.original.map((b,i)=>({b,i})).filter(({b})=>b.o===(horizontal?'h':'v'));
+  for(const region of d.cells.regions)if(!region.rectangular) {
+    for(const tile of region.tiles) {
+      const col=tile%d.cells.nx,row=Math.floor(tile/d.cells.nx);
+      const x=(d.cells.x[col]+d.cells.x[col+1])/2,y=(d.cells.y[row]+d.cells.y[row+1])/2;
+      const cross=horizontal?x:y,along=horizontal?y:x;
+      let lower=null,upper=null;
+      for(const item of parallel)if(item.b.a<cross&&item.b.b>cross) {
+        if(item.b.p<along&&(!lower||item.b.p>lower.b.p))lower=item;
+        if(item.b.p>along&&(!upper||item.b.p<upper.b.p))upper=item;
+      }
+      if(!lower||!upper||bars[lower.i].p>=bars[upper.i].p)continue;
+      const mapped=bars[lower.i].p+(along-lower.b.p)*(bars[upper.i].p-bars[lower.i].p)/(upper.b.p-lower.b.p);
+      const target=cellAt(cells,horizontal?cross:mapped,horizontal?mapped:cross);
+      if(!target||target.rectangular)continue;
+      if(!votes.has(target.id))votes.set(target.id,new Map());
+      const candidates=votes.get(target.id),area=(d.cells.x[col+1]-d.cells.x[col])*(d.cells.y[row+1]-d.cells.y[row]);
+      candidates.set(region.id,(candidates.get(region.id)||0)+area);
+    }
+  }
+  const result=new Map(),cache=d.irregularColors||(d.irregularColors=new Map());
+  for(const [target,candidates]of votes) {
+    const source=[...candidates].sort((a,b)=>b[1]-a[1])[0][0];
+    if(!cache.has(source))cache.set(source,predominantColor(d.cells.regions[source],d.cells,d.paint));
+    result.set(target,cache.get(source));
+  }
+  return result;
+}
 function paintEditedCells(d,cells,colors) {
   const image=new ImageData(new Uint8ClampedArray(d.paint.data),W,H);
   extendFramePaint(d,image);
   repairExposedPixels(d,image);
-  // A moving outer guide clears its former extent, without stretching paint
-  // remnants in irregular regions. Rectangular cells are painted from identity.
+  // Clear the former workspace extent when a guide moves inward. Both
+  // rectangular and irregular regions then receive their own cell colors.
   if(d.original[d.index].edge) {
     const old=d.frame;
     for(let y=0;y<H;y++)for(let x=0;x<W;x++) {
@@ -471,8 +503,10 @@ function paintEditedCells(d,cells,colors) {
     }
   }
   ink.putImageData(image,0,0);
-  for(const r of cells.regions)if(r.rectangular) {
-    paintRectangle(r,colors.get(rectangleKey(r))||predominantColor(r,cells,image));
+  const irregular=irregularCellColors(d,cells);
+  for(const r of cells.regions) {
+    if(r.rectangular)paintRectangle(r,colors.get(rectangleKey(r))||predominantColor(r,cells,image));
+    else paintRegion(r,cells,irregular.get(r.id)||predominantColor(r,cells,image));
   }
 }
 // Fill a connected geometric region, including paint hidden under its borders.
