@@ -432,15 +432,32 @@ function repairExposedPixels(d,image) {
   // Only pixels uncovered by a moving bar are repaired. Existing visible paint
   // in an unrepaired region stays exactly where deletion left it.
   for(let i=0;i<targets.length;i++)if(targets[i]) {
-    const source=neighbors(i).find(j=>!walls[j*4+3]&&!d.walls[j*4+3]);
+    const source=neighbors(i).find(j=>!walls[j*4+3]&&!d.walls[j*4+3]&&
+      j%W>=d.frame.left&&j%W<d.frame.right&&Math.floor(j/W)>=d.frame.top&&Math.floor(j/W)<d.frame.bottom);
     if(source!==undefined){copy(i,source);targets[i]=2;queue[tail++]=i;}
   }
   while(head<tail) {
     const i=queue[head++];for(const j of neighbors(i))if(targets[j]===1){copy(j,i);targets[j]=2;queue[tail++]=j;}
   }
 }
+// Expanding a guide reveals picture area, not workspace. Extend each old
+// boundary region's own color even when that region is not rectangular yet.
+function extendFramePaint(d,image) {
+  if(!d.original[d.index].edge)return;
+  const old=d.frame,values=new Map();
+  for(let y=frame.top;y<frame.bottom;y++)for(let x=frame.left;x<frame.right;x++) {
+    if(x>=old.left&&x<old.right&&y>=old.top&&y<old.bottom)continue;
+    const sx=clamp(x,old.left+thickness/2,old.right-thickness/2-1);
+    const sy=clamp(y,old.top+thickness/2,old.bottom-thickness/2-1);
+    const region=cellAt(d.cells,sx+0.5,sy+0.5);
+    if(!values.has(region.id))values.set(region.id,parseInt(predominantColor(region,d.cells,d.paint).slice(1),16));
+    const value=values.get(region.id),i=(y*W+x)*4;
+    image.data[i]=value>>16;image.data[i+1]=(value>>8)&255;image.data[i+2]=value&255;image.data[i+3]=255;
+  }
+}
 function paintEditedCells(d,cells,colors) {
   const image=new ImageData(new Uint8ClampedArray(d.paint.data),W,H);
+  extendFramePaint(d,image);
   repairExposedPixels(d,image);
   // A moving outer guide clears its former extent, without stretching paint
   // remnants in irregular regions. Rectangular cells are painted from identity.
@@ -525,7 +542,7 @@ function dragLimits(d) {
       // Keep clearance for frame edges and unsupported free endpoints.
       const canCollapseAt = end => !old.edge && !b.edge && d.original.some((target, j) =>
         j !== d.index && target.o === old.o && target.p === end &&
-        contains(target, b.p) && target.a < old.b && target.b > old.a);
+        contains(target, b.p) && target.a <= old.b && target.b >= old.a);
       if (b.a === old.p) hi = Math.min(hi, b.b - (canCollapseAt(b.b) ? 0 : thickness));
       else if (b.b === old.p) lo = Math.max(lo, b.a + (canCollapseAt(b.a) ? 0 : thickness));
       else if (contains(b, old.p)) {
