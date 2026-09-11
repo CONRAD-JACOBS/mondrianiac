@@ -55,11 +55,13 @@ h1 { font-size:clamp(36px,4.5vw,60px); line-height:1.04; letter-spacing:-2.8px; 
 .swatch:hover { transform:translateY(-2px); }
 .swatch[aria-pressed="true"] { outline:2px solid var(--ink); outline-offset:3px; }
 .workspace-label { color:var(--muted); font-size:10px; }
-.workspace { display:grid; grid-template-columns:54px minmax(0,800px); justify-content:center; gap:18px; padding:6px 22px 20px; }
-#tools { display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:16px; }
-#tools .tool-label { font-size:9px; margin-bottom:2px; }
+.workspace { display:grid; grid-template-columns:54px minmax(0,800px) 54px; justify-content:center; gap:18px; padding:6px 22px 20px; }
+#tools, #format-tools { display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:16px; }
+#tools .tool-label, #format-tools .tool-label { font-size:9px; margin-bottom:2px; }
 .tool { width:44px; height:44px; background:#fff; border:1px solid #bcb9b1; position:relative; }
 .tool::after { content:''; position:absolute; background:var(--ink); }
+#center::after { display:none; }
+#center { display:grid; place-items:center; }
 #horizontal::after { left:9px; right:9px; top:18px; height:6px; }
 #vertical::after { top:9px; bottom:9px; left:18px; width:6px; }
 .tool:hover { border-color:var(--ink); }
@@ -93,15 +95,15 @@ blockquote footer { font-size:12px; }
 .citation { font-size:11px; line-height:1.65; color:var(--muted); margin:0; max-width:500px; }
 .site-footer { display:flex; justify-content:space-between; gap:20px; padding:25px 0 32px; color:var(--muted); font-size:11px; }
 .site-footer strong { color:var(--ink); font-weight:600; }
-@media(min-width:1200px) { .workspace { grid-template-columns:54px minmax(0,880px); } }
+@media(min-width:1200px) { .workspace { grid-template-columns:54px minmax(0,880px) 54px; } }
 @media(max-width:760px) {
  .wrap { width:calc(100% - 32px); } .site-header { padding:20px 0; } .brand { font-size:22px; } .tagline { display:none; }
  nav { gap:16px; font-size:12px; } .hero { padding:28px 0 24px; display:block; } h1 { letter-spacing:-1.8px; }
  .intro { max-width:440px; margin:15px 0 0; font-size:13px; } .studio-header,.toolbar { padding:12px; }
  .actions { gap:12px; } .studio-title { gap:8px; } .studio-title h2 { font-size:10px; } #save-image { padding:10px; }
  .toolbar { flex-wrap:wrap; } .palette-group { gap:12px; } .workspace-label { font-size:9px; }
- .workspace { grid-template-columns:44px minmax(0,1fr); gap:10px; padding:2px 12px 14px; } .canvas-surround { padding:4px; }
- #tools { padding-top:6px; } .studio-status { padding:10px 12px; } .studio-note { display:none; }
+ .workspace { grid-template-columns:44px minmax(0,1fr) 44px; gap:10px; padding:2px 12px 14px; } .canvas-surround { padding:4px; }
+ #tools, #format-tools { padding-top:6px; } .studio-status { padding:10px 12px; } .studio-note { display:none; }
  .guide-grid { grid-template-columns:repeat(2,1fr); gap:20px; } .about { grid-template-columns:38% minmax(0,1fr); margin-top:38px; }
  .about-copy { padding:22px 0 24px 24px; } blockquote p { font-size:34px; letter-spacing:-1px; } .about-description { font-size:13px; }
  .about-kicker::after { width:22px; height:22px; } .portrait figcaption { padding-right:12px; }
@@ -111,14 +113,14 @@ blockquote footer { font-size:12px; }
  .studio-title h2 { font-size:9px; letter-spacing:.04em; } .color-mark { gap:2px; } .color-mark span { width:5px; height:13px; }
  .studio-header { flex-wrap:wrap; } .studio-title { flex-basis:100%; } .actions { width:100%; justify-content:flex-end; gap:18px; } #undo, #refresh { font-size:11px; } #save-image { font-size:11px; gap:6px; } #save-image svg { width:14px; }
  .palette-group { width:100%; justify-content:space-between; } .palette-group .tool-label { font-size:9px; white-space:nowrap; } #palette { flex-wrap:nowrap; flex-shrink:0; gap:6px; } .swatch { width:27px; height:27px; } #save-image { white-space:nowrap; flex-shrink:0; } #save-image .mono { display:none; } .workspace-label { margin-left:auto; }
- .workspace { grid-template-columns:36px minmax(0,1fr); gap:7px; padding-inline:8px; } .tool { width:34px; height:34px; }
+ .workspace { grid-template-columns:36px minmax(0,1fr) 36px; gap:7px; padding-inline:8px; } .tool { width:34px; height:34px; }
  #horizontal::after { left:6px; right:6px; top:13px; } #vertical::after { top:6px; bottom:6px; left:13px; }
- #tools .tool-label { font-size:8px; } .about { grid-template-columns:1fr; } .portrait { border-right:0; display:grid; grid-template-columns:45% 1fr; gap:18px; align-items:end; }
+ #tools .tool-label, #format-tools .tool-label { font-size:8px; } .about { grid-template-columns:1fr; } .portrait { border-right:0; display:grid; grid-template-columns:45% 1fr; gap:18px; align-items:end; }
  .portrait figcaption { padding-bottom:0; } .about-copy { padding:26px 0; } .about-description { margin:10px 0 20px; }
  .site-footer { flex-direction:column; gap:10px; } .guide-grid { gap:22px 18px; }
 }
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .swatch:hover { transform:none; } }
-@media print { body { background:white; } .site-header,.hero,.studio-header,.toolbar,#tools,.studio-status,.guide,.about,.site-footer { display:none; } .wrap { width:100%; } .studio { border:0; } .workspace { display:block; padding:0; } .canvas-surround { border:0; padding:0; } }
+@media print { body { background:white; } .site-header,.hero,.studio-header,.toolbar,#tools,#format-tools,.studio-status,.guide,.about,.site-footer { display:none; } .wrap { width:100%; } .studio { border:0; } .workspace { display:block; padding:0; } .canvas-surround { border:0; padding:0; } }
 </style>
 </head>
 <body>
@@ -154,6 +156,9 @@ blockquote footer { font-size:12px; }
         <button id="vertical" class="tool" type="button" title="Add vertical bars" aria-label="Add vertical bars" aria-pressed="false"></button>
       </div>
       <div class="canvas-surround"><canvas id="board" width="800" height="600" aria-label="Interactive Mondrian composition. Choose a color to paint; drag bars to reshape it." aria-describedby="how-to">Your browser needs canvas support to use the studio.</canvas></div>
+      <div id="format-tools" role="group" aria-label="Picture formatting"><span class="mono tool-label">Format</span>
+        <button id="center" class="tool" type="button" title="Center the picture in the workspace" aria-label="Center the picture"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5"/><rect x="8" y="8" width="8" height="8"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></button>
+      </div>
     </div>
     <div class="studio-status"><p id="status" role="status" aria-live="polite">Choose a color, then click an area to paint.</p><span class="mono studio-note">Experiment. Perfect. Repeat.</span></div>
   </section>
@@ -161,8 +166,8 @@ blockquote footer { font-size:12px; }
     <summary><span class="guide-title"><span class="mono">A few simple moves</span>How to play</span></summary>
     <div class="guide-grid">
       <div><h3>01 &nbsp; Color</h3><p>Choose a swatch, then click an area. Color fills every connected space. Repaired rectangular cells keep their predominant color; repaint them to choose another.</p></div>
-      <div><h3>02 &nbsp; Compose</h3><p>Drag a bar to resize the shapes. The light gray outer frame is a draggable guide. Move it inward to gently push neighboring lines together.</p></div>
-      <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. Exact overlaps merge. Touching pieces move together when they complete one side of a rectangular cell; otherwise they stay independent. Dragging preserves existing rectangular cells; deletion can leave areas to repair.</p></div>
+      <div><h3>02 &nbsp; Compose</h3><p>Drag a bar to resize the shapes. The light gray outer frame is a draggable guide. Center, on the right, recenters the picture without resizing it. Move it inward to gently push neighboring lines together.</p></div>
+      <div><h3>03 &nbsp; Add &amp; subtract</h3><p>Choose a line tool, then click open space. Right-click an interior bar to remove one segment. The larger color area fills the joined cell; equal areas are decided at random. Exact overlaps merge. Touching pieces move together when they complete one side of a rectangular cell; otherwise they stay independent. Dragging preserves existing rectangular cells; deletion can leave areas to repair.</p></div>
       <div><h3>04 &nbsp; Keep exploring</h3><p>Refresh starts a new composition. Undo restores it, or reverses a move (⌘Z / Ctrl+Z). Escape leaves line mode. Save image downloads just your picture, without the gray editing frame.</p></div>
     </div>
   </details>
@@ -237,12 +242,20 @@ function removeSegment(bar, t) {
   if (bar.edge) { status('Outer frame bars are protected. Drag them to resize the picture.'); return; }
   const interval = segmentAt(bar, t);
   if (!interval) return;
+  const [a,b] = interval, middle=(a+b)/2;
+  const before=analyzeCells(), image=ink.getImageData(0,0,W,H);
+  const side1=cellAt(before,bar.o==='h'?middle:bar.p-0.5,bar.o==='h'?bar.p-0.5:middle);
+  const side2=cellAt(before,bar.o==='h'?middle:bar.p+0.5,bar.o==='h'?bar.p+0.5:middle);
   checkpoint();
-  const [a,b] = interval;
   bars = bars.filter(item => item !== bar);
   if (bar.a < a) bars.push({...bar,b:a});
   if (b < bar.b) bars.push({...bar,a:b});
-  normalize(); draw(); status('Bar segment removed. Existing paint is unchanged.');
+  normalize();
+  if(side1 && side2 && side1.id!==side2.id) {
+    const cells=analyzeCells(),merged=cellAt(cells,bar.o==='h'?middle:bar.p,bar.o==='h'?bar.p:middle);
+    paintRegion(merged,cells,predominantColor(merged,cells,image,true));
+  }
+  draw(); status('Segment removed. The larger color area fills the joined cell; equal areas are decided at random.');
 }
 function addBar(o, x, y) {
   if (x <= frame.left || x >= frame.right || y <= frame.top || y >= frame.bottom) {
@@ -336,7 +349,7 @@ function mergeRepairedDividers() {
   bars=[...groups.values()];normalize();
 }
 const rectangleKey=r=>[r.left,r.right,r.top,r.bottom].join(':');
-function predominantColor(region,cells,image) {
+function predominantColor(region,cells,image,randomTie=false) {
   const counts=new Map();let best=0xffffff,maximum=0;
   for(const i of region.tiles) {
     const col=i%cells.nx,row=Math.floor(i/cells.nx);
@@ -346,7 +359,23 @@ function predominantColor(region,cells,image) {
       if(count>maximum){maximum=count;best=key;}
     }
   }
+  if(randomTie) {
+    const tied=[...counts].filter(([,area])=>area===maximum).map(([value])=>value);
+    if(tied.length>1)best=tied[Math.floor(Math.random()*tied.length)];
+  }
   return '#'+best.toString(16).padStart(6,'0');
+}
+function cellAt(cells,x,y) {
+  const col=cells.x.findIndex(v=>v>x)-1,row=cells.y.findIndex(v=>v>y)-1;
+  if(col<0||row<0||col>=cells.nx||row>=cells.ny)return null;
+  return cells.regions[cells.labels[row*cells.nx+col]];
+}
+function paintRegion(region,cells,value) {
+  ink.fillStyle=value;
+  for(const i of region.tiles) {
+    const col=i%cells.nx,row=Math.floor(i/cells.nx);
+    ink.fillRect(cells.x[col],cells.y[row],cells.x[col+1]-cells.x[col],cells.y[row+1]-cells.y[row]);
+  }
 }
 function paintRectangle(r,value) {
   ink.fillStyle=value;ink.fillRect(r.left,r.top,r.right-r.left,r.bottom-r.top);
@@ -663,6 +692,21 @@ for(const c of ['red','yellow','blue','white','gray','black']) {
   document.getElementById('palette').appendChild(b);
 }
 document.getElementById('undo').onclick=undo;
+function centerPicture() {
+  if(drag)return;
+  const width=frame.right-frame.left,height=frame.bottom-frame.top;
+  const dx=Math.round((W-width)/2)-frame.left,dy=Math.round((H-height)/2)-frame.top;
+  if(!dx&&!dy){status('The picture is already centered.');return;}
+  checkpoint();
+  const snapshot=document.createElement('canvas');snapshot.width=W;snapshot.height=H;
+  snapshot.getContext('2d').drawImage(paint,0,0);
+  ink.fillStyle='#eee';ink.fillRect(0,0,W,H);
+  ink.drawImage(snapshot,frame.left,frame.top,width,height,frame.left+dx,frame.top+dy,width,height);
+  bars=bars.map(b=>({...b,p:b.p+(b.o==='h'?dy:dx),a:b.a+(b.o==='h'?dx:dy),b:b.b+(b.o==='h'?dx:dy)}));
+  frame={left:frame.left+dx,right:frame.right+dx,top:frame.top+dy,bottom:frame.bottom+dy};
+  draw();status('Picture centered. Its size and composition are unchanged.');
+}
+document.getElementById('center').onclick=centerPicture;
 function refreshPicture() {
   if(drag)return;
   checkpoint();

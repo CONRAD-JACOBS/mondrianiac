@@ -8,10 +8,11 @@ A small, free playground for line, color, proportion, and balance, inspired by P
 
 - Select a color, then click an area. Paint fills every connected open space.
 - Drag interior bars to reshape cells. There is no automatic snapping. Touching segments remain independent unless they complete a side of a rectangular cell, in which case they form one movable divider. True overlaps merge, including into the protected outer frame.
-- Dragging preserves existing rectangular cells. Deletion may leave irregular or mixed-color areas; adding or moving bars repairs them. A repaired rectangle takes its predominant existing color and can then be repainted.
+- Dragging preserves existing rectangular cells. Deletion may leave irregular areas; adding or moving bars repairs them. A repaired rectangle takes its predominant existing color and can then be repainted.
 - Drag the frame inward to compress neighboring cells while keeping minimum spacing.
 - Choose a horizontal or vertical line tool, then click open space to add a bar.
-- Right-click an interior bar to remove the segment between adjacent perpendicular intersections.
+- Right-click an interior bar to remove the segment between adjacent perpendicular intersections. The color occupying the largest area fills the joined cell; exact ties are decided randomly.
+- Center (on the right) recenters the picture without resizing it or changing its composition. It can be undone.
 - Refresh starts a new composition; Undo can restore the previous picture.
 - Undo with the button or Command/Ctrl+Z. Escape leaves line mode.
 - Save image downloads a PNG of the visible artwork inside the editing frame, with no edge bars.
