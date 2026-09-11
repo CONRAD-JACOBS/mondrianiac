@@ -54,11 +54,13 @@ With both folders' changes committed:
 ```sh
 cd /Users/neurorobots/MEGA/JACOB/HTML_FUN/mondrianiac
 git pull --ff-only origin main
-git merge dev
+git merge --no-ff dev
 git push origin main
 ```
 
-This publishes the tested development changes to the public site. If Git reports a conflict, resolve it before committing and pushing. After changes made directly on `main`, bring them into development with `git merge main` in `mondrianiac-dev`, then `git push origin dev`.
+This publishes the tested development changes to the public site. If Git reports a conflict, resolve it before committing and pushing. After changes made directly on `main`, bring them into development with `git merge --no-ff main` in `mondrianiac-dev`, then `git push origin dev`.
+
+Use `--no-ff` when merging between these branches: each updated branch needs its own commit ID so GitHub Pages does not reuse an earlier combined deployment. Both local folders are configured to use this merge behavior by default.
 
 Every deployment fetches both branches, so a development push keeps the public site on `main`. Check the repository’s Actions tab for deployment progress, then reload the browser. The app's Refresh button starts a new painting; it does not reload the website.
 
